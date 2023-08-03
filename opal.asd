@@ -10,8 +10,14 @@
                :alexandria
                :iterate
                :trivia
-               :esrap)
+               :esrap
+               :named-readtables)
   :pathname "src"
   :components
-  ((:file "opal" :depends-on ("package"))
-   (:file "package")))
+  ((:file "embed" :depends-on ("parse" "codegen"))
+
+   (:file "codegen" :depends-on ("syntax"))
+   (:file "parse" :depends-on ("syntax"))
+   (:file "typecheck" :depends-on ("syntax"))
+   (:file "syntax" :depends-on ("opal"))
+   (:file "opal")))
