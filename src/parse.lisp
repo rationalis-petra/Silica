@@ -17,19 +17,31 @@
 
 ;; types
 (defvar *forall-sym* (sym "∀"))
-(defvar *arr-sym* (sym "→"))
+(defvar *arrow-sym* (sym "→"))
 
 (defun infix-p (symbol)
   (flet ((special-p (char) nil))
     (find-if #'special-p char)))
 
+;; Declaration constructors
+(defun mk-decl (var ann)
+  (make-instance 'opal-declaration :var var :ann ann))
+(defun mk-def (var val)
+  (make-instance 'opal-definition :var var :val val))
+
+;; kind constructorss
+(defun mk-kind ()
+  (make-instance 'kind-type))
+(defun mk-karr (from to)
+  (make-instance 'kind-arrow :from from :to to))
+
 ;; Type constructors
 (defun mk-∀ (var body)
-  (make-insance 'forall :var var :body body))
+  (make-instance 'forall :var var :body body))
 (defun mk-arr (from to)
-  (make-insance 'arrow :from from :to to))
+  (make-instance 'arrow :from from :to to))
 (defun mk-sig (declarations)
-  (make-instnace 'signature :declarations declarations))
+  (make-instance 'signature :declarations declarations))
 
 ;; Term constructors
 (defun mk-lisp (form)
@@ -48,8 +60,6 @@
   (make-instance 'projection :structure struct :field field))
 (defun mk-val (val)
   (make-instance 'opal-literal :val val))
-(defun mk-def (var val)
-  (make-instance 'val-definition :var var :val val))
 
 (defun to-def (definition)
   (let ((name (car definition))
@@ -101,6 +111,8 @@
 
        ;; Types
        ((eq *forall-sym* (car term))
+        (mk-abstraction term #'mk-abs))
+       ((eq *arrow-sym* (car term))
         (mk-abstraction term #'mk-abs))
        (t (reduce #'mk-app (mapcar #'to-ast term)))))
 

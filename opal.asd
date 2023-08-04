@@ -21,3 +21,12 @@
    (:file "typecheck" :depends-on ("syntax"))
    (:file "syntax" :depends-on ("opal"))
    (:file "opal")))
+
+(defsystem :opal.tests
+  :name "opal tests"
+  :depends-on (:opal :parachute)
+  :pathname "test"
+  :components
+  ((:file "typecheck" :depends-on ("opal-tests"))
+   (:file "equality" :depends-on ("opal-tests"))
+   (:file "opal-tests")))

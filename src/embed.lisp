@@ -13,7 +13,7 @@
 
 (cl:unless (cl:boundp (cl:quote |τ|))
   (cl:defconstant |τ|
-    (cl:make-instance 'opal:kind-univ)))
+    (cl:make-instance 'opal:kind-type)))
 
 ;; Grammar
 ;; infix operators → all same fixity 

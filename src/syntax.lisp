@@ -28,7 +28,9 @@
     :reader val
     :initarg :val)
    (val-type
-    :type opal-type)))
+    :type opal-type
+    :reader val-type
+    :initarg :val-type)))
 (defclass opal-struct (term)
   ((entries
     :type list
@@ -49,7 +51,9 @@
     :reader var
     :initarg :var)
    (var-type
-    :type opal-type)
+    :type opal-type
+    :reader var-type
+    :initarg :var-type)
    (body
     :type term
     :reader body
@@ -88,13 +92,16 @@
 (defclass signature (opal-type)
   ((declarations
     :type list
+    :reader declarations
     :initarg :declarations)))
 (defclass arrow (opal-type)
   ((from
     :type opal-type
+    :reader from
     :initarg :from)
    (to
     :type opal-type
+    :reader to
     :initarg :to)))
 (defclass forall (opal-type)
   ((var
@@ -103,16 +110,16 @@
     :initarg :var)
    (body
     :type opal-type
-    :reader var
-    :initarg :var)))
+    :reader body
+    :initarg :body)))
 
 (defclass kind () ())
-(defclass kind-univ (kind) ())
-(defclass kind-arr (kind)
+(defclass kind-type (kind) ())
+(defclass kind-arrow (kind)
   ((from
     :type kind
     :reader from)
-   (kind-to
+   (to
     :type kind
     :reader to)))
 
@@ -138,39 +145,74 @@
     :reader val
     :initarg :val)))
 
-(defclass type-declaration ()
-  ((var
-    :type symbol
-    :reader var
-    :initarg :var)
-   (ann
-    :type opal-type
-    :reader ann
-    :initarg :ann)))
-(defclass val-definition ()
-  ((var
-    :type symbol
-    :reader var
-    :initarg :var)
-   (val
-    :type term
-    :reader val
-    :initarg :val)))
-(defclass kind-declaration ()
- ((var
-   :type symbol
-   :reader var
-   :initarg :var)
-  (ann
-   :type kind
-   :reader ann
-   :initarg :ann)))
-(defclass type-definition ()
-  ((var
-    :type symbol
-    :reader var
-    :initarg :var)
-   (val
-    :type opal-type
-    :reader val
-    :initarg :val)))
+
+;; TODO: α<
+(defgeneric α= (l r &optional renamings shadowed)
+  (:documentation "Predicate: return true if two terms equal up to α-renaming")
+
+  ;; Types
+  (:method ((l native-type) (r native-type) &optional renamings shadowed)
+    (declare (ignore renamings shadowed))
+    (eq (lisp-type l) (lisp-type r)))
+
+  (:method ((l forall) (r forall) &optional renamings shadowed)
+    (α= (body l) (body r)
+        (acons (var l) (var r) renamings)
+        (cons (cons (var l) (car shadowed))
+              (cons (var r) (cdr shadowed)))))
+
+  (:method ((l arrow) (r arrow) &optional renamings shadowed)
+    (and (α= (from l) (from r) renamings shadowed)
+         (α= (to l) (to r) renamings shadowed)))
+
+  (:method ((l var) (r var) &optional renamings shadowed)
+    (let ((entry (assoc (var l) renamings)))
+      (if entry
+          (eq (cdr entry) (var r))
+          (and (eq (member (var l) (car shadowed))
+                   (member (var r) (cdr shadowed)))
+               (eq (var l) (var r))))))
+    
+
+  (:method ((l signature) (r signature) &optional renamings shadowed)
+    (and 
+     (iter (for decl-1 in (declarations l))
+       (for decl-2 in (declarations r))
+       (always
+        (and (eq (var decl-1) (var decl-2))
+             ;; todo: shadow variable bindings?
+             (α= (ann decl-1) (ann decl-2) renamings shadowed))))
+     (= (length (declarations l)) (length (declarations r)))))
+
+  (:method (l r &optional renamings shadowed)
+    (declare (ignore l r renamings shadowed))
+    nil))
+
+
+
+;; TODO: document/layout engine (truncate at n chars)
+(defgeneric show (val)
+  (:documentation "Pseudo pretty-print method")
+
+  (:method ((val var))
+    (string (var val)))
+
+  (:method ((val opal-literal))
+    (format nil "~A" (val val)))
+
+  (:method ((val opal-struct))
+    (let ((stream (make-string-output-stream)))
+      (write-string "(σ" stream )
+      (iter (for entry in (entries val))
+        (format stream " (~A ≜ ~A)" (var entry) (show (val entry))))
+      (write-string ")" stream)
+      (get-output-stream-string stream))))
+
+
+(defmethod print-object ((term term) stream)
+  (format stream "#<term ~A>" (show term)))
+
+(defmethod print-object ((type opal-type) stream))
+
+(defmethod print-object ((kind kind) stream))
+
