@@ -4,7 +4,7 @@
 ;; 
 (defpackage :opal-symbols
   (:nicknames :sym :opal-user)
-  (:export "λ" "Λ" "π" "σ" "≜" "lisp"))
+  (:export "λ" "Λ" "π" "σ" "Σ" "∀" "→" "≜" "◂" "lisp"))
 
 (defun sym (name) (intern name :opal-symbols))
 (defvar *lambda-sym* (sym "λ"))
@@ -12,77 +12,52 @@
 (defvar *pi-sym* (sym "π"))
 (defvar *sigma-sym* (sym "σ")) 
 (defvar *cap-sigma-sym* (sym "Σ"))
-(defvar *def-eq-sym* (sym "≜"))
+(defvar *def-sym* (sym "≜"))
+(defvar *ann-sym* (sym "◂"))
+(defvar *native-sym* (sym "native"))
 (defvar *lisp-sym* (sym "lisp"))
 
 ;; types
 (defvar *forall-sym* (sym "∀"))
 (defvar *arrow-sym* (sym "→"))
 
-(defun infix-p (symbol)
-  (flet ((special-p (char) nil))
-    (find-if #'special-p char)))
+;; kinds
+(defvar *kind-sym* (sym "τ"))
+(defvar *kind-t* (mk-kind))
 
-;; Declaration constructors
-(defun mk-decl (var ann)
-  (make-instance 'opal-declaration :var var :ann ann))
-(defun mk-def (var val)
-  (make-instance 'opal-definition :var var :val val))
+(defun infix? (val)
+  (flet ((special-p (char)
+           (and 
+            (member (cl-unicode:general-category char)
+                    (list "Pc" "Pd" "Ps" "Pe" "Pi" "Pf" "Po" "Sm" "Rc" "Sk" "So")
+                    :test #'equal)
+            (not (eq char #\∀))
+            (not (eq char #\∃)))))
+    (when (typep val 'symbol)
+      (every #'special-p (string val)))))
 
-;; kind constructorss
-(defun mk-kind ()
-  (make-instance 'kind-type))
-(defun mk-karr (from to)
-  (make-instance 'kind-arrow :from from :to to))
-
-;; Type constructors
-(defun mk-∀ (var body)
-  (make-instance 'forall :var var :body body))
-(defun mk-arr (from to)
-  (make-instance 'arrow :from from :to to))
-(defun mk-sig (declarations)
-  (make-instance 'signature :declarations declarations))
-
-;; Term constructors
-(defun mk-lisp (form)
-  (make-instance 'lisp-form :form form))
-(defun mk-λ (var body)
-  (make-instance 'opal-lambda :var var :body body))
-(defun mk-abs (var body)
-  (make-instance 'quantify :var var :body body))
-(defun mk-var (var)
-  (make-instance 'var :var var))
-(defun mk-app (left right)
-  (make-instance 'app :left left :right right))
-(defun mk-struct (defs)
-  (make-instance 'opal-struct :entries defs)) 
-(defun mk-proj (struct field)
-  (make-instance 'projection :structure struct :field field))
-(defun mk-val (val)
-  (make-instance 'opal-literal :val val))
 
 (defun to-def (definition)
-  (let ((name (car definition))
-        (args (iter (for elt in (cdr definition))
-                (if (eq elt *def-eq-sym*)
-                    (finish)
-                    (collect elt))))
-        (body (iter (for elt in (cdr definition))
-                    (with start = nil)
-                (when start (collect elt))
-                (when (eq elt *def-eq-sym*) (setf start t)))))
+  (let ((name (if (listp (cadr definition))
+                  (caadr definition)
+                  (cadr definition)))
+        (body (caddr definition)))
     (flet ((mk-fun (args expr)
              (reduce (lambda (x y) (mk-λ y x))
-                     (cons expr (reverse args))))
-
-           (body-expr (body)
-             (if (= 1 (length body))
-                 (to-ast (car body))
-                 (reduce #'mk-app (mapcar #'to-ast body)))))
-      (mk-def name
-              (if args
-                  (mk-fun args (body-expr body))
-                  (body-expr body))))))
+                     (cons expr (reverse args)))))
+      (cond 
+        ((eq *def-sym* (car definition))
+         (mk-def name
+                 (if (listp (cadr definition))
+                     (mk-fun (cdadr definition) (to-ast body))
+                     (to-ast body))))
+        ;; TODO: fix me!
+        ((eq *ann-sym* (car definition))
+         (mk-decl name
+                  (if (listp (cadr definition))
+                      (mk-fun (cdadr definition) (to-ast body))
+                      (to-ast body))))
+        (t (error "bad def!"))))))
 
 
 (defun mk-abstraction (term abstractor)
@@ -94,7 +69,12 @@
 
 (defun to-ast (term)
   (match term
-    ((type symbol)  (mk-var term)) ;; TODO ensure is not keyword
+    ((type keyword)
+     (mk-val term))
+    ((type symbol)
+     (if (eq *kind-sym* term)
+         *kind-t*
+         (mk-var term))) ;; TODO ensure is not keyword
     ((type list)
      (cond
        ;; Terms
@@ -105,19 +85,59 @@
        ((eq *sigma-sym* (car term))
         (mk-struct (mapcar #'to-def (cdr term))))
        ((eq *pi-sym* (car term))
-        (mk-proj (to-ast (caddr term)) (cadr term)))
+        (mk-proj (cadr term) (to-ast (caddr term))))
        ((eq *lisp-sym* (car term))
-        (mk-lisp (elt term 3)))
+        (mk-lisp (to-ast (elt term 1)) (elt term 3)))
 
        ;; Types
+       ((eq *native-sym* (car term))
+        (mk-native (cadr term)))
        ((eq *forall-sym* (car term))
-        (mk-abstraction term #'mk-abs))
+        (mk-abstraction term #'mk-∀))
        ((eq *arrow-sym* (car term))
-        (mk-abstraction term #'mk-abs))
-       (t (reduce #'mk-app (mapcar #'to-ast term)))))
+        (let ((left (to-ast (cadr term)))
+              (right (to-ast (caddr term))))
+          (typecase (cons left right)
+            ((cons opal-type opal-type) (mk-arr left right))
+            ((cons kind kind) (mk-karr left right))
+            (t (error "→ expects either two kinds or two types")))))
+       (t
+        (reduce #'mk-app (mapcar #'to-ast term)))))
 
     ((type integer) (mk-val term))
     ((type string)  (mk-val term))
     ;; Possibly remove above??
     (_ (format t "failed to match:~A~%" term))))
 
+
+(defun infixify (term)
+  (cond
+    ((and (typep term 'list) (eq (car term) *lisp-sym*))
+     (cons (car term) (cons (infixify (cadr term)) (cddr term))))
+    ((and (typep term 'list)
+          (= 1 (length term))
+          (infix? (car term)))
+     (car term))
+
+    ((typep term 'list)
+     (flet ((proc-head (head)
+              (if (= 1 (length head))
+                  (infixify (car head))
+                  (mapcar #'infixify (reverse head))))
+            (proc-tail (tail)
+              (if (= 1 (length tail))
+                  (infixify (car tail)))
+              (infixify tail)))
+
+       (iter (for elt in term)
+             (for i from 1)
+             (with vals = nil)
+
+         (if (infix? elt)
+             (return 
+               (if vals
+                   (list elt (proc-head vals) (proc-tail (nthcdr i term)))
+                   (list elt (proc-tail (nthcdr i term)))))
+             (push elt vals))
+         (finally (return (proc-head vals))))))
+    (t term)))

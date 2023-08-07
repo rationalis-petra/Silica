@@ -1,17 +1,27 @@
 (defpackage opal
   (:use :cl :trivia :iter)
   (:export
+   ;; get opal values from CL
    :run-main
+   :get-opal-val
+
    :*opal-modules*
+
+   ;; Readtables
    :classic
-   :to-ast :to-def :reify
-   :check :infer
 
-   ;; comparions
-   :α=
+   ;; pipeline functions
+   :infixify :to-ast :to-def  ;; parse
+   :check :infer ;; typecheck
+   :reify ;; compile
 
-   ;; constructors
-   :mk-λ :mk-struct :mk-var :mk-abs :mk-val
-   :mk-∀ :mk-sig :mk-arr
+   ;; comparisons
+   :α= ;; k=?
+
+   ;; Constructors and values
+   :mk-λ :mk-struct :mk-var :mk-abs :mk-val :mk-app :mk-proj
+   :mk-∀ :mk-sig :mk-arr :mk-native :mk-tapp
+   :mk-kind :mk-karr
    :mk-def :mk-decl
-   :kind-type))
+   :kind-type
+   :+empty-env+))

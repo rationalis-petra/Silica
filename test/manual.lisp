@@ -1,51 +1,42 @@
 ;; Manual testing area
 
-(named-readtables:in-readtable :modern) 
+(NAMED-READTABLES:IN-READTABLE :MODERN) 
 
 (CL:IN-PACKAGE :OPAL-USER) 
 
 (module main
-  (id : (∀ α (→ α α)))
-  (id ≜ (Λ α (λ x x))))
+  (Unit ◂ τ)
+  (Unit ≜ native CL:INTEGER)
 
-;; (module main
-;;   (pure x   ≜ (lisp :auto (x) (CL:LAMBDA () x)))
-;;   (>> m1 m2 ≜ (lisp :auto (x) (CL:LAMBDA () (CL:FUNCALL m1) (CL:FUNCALL m2))))
-;;   (>>= m f  ≜ (lisp :auto (x) (CL:LAMBDA () (CL:FUNCALL m (CL:FUNCALL f)))))
+  (unit ◂ Unit)
+  (unit ≜ (lisp Unit () 0))
 
-;;   (print-ln string ≜ (lisp :auto (string) (CL:LAMBDA () (CL:PRINT string))))
+  (IO ◂ τ → τ)
+  (IO ≜ ∀ α (Unit → α))
 
-;;   (add x y ≜ (lisp ℤ (x y) (CL:+ x y)))
-;;   (sub x y ≜ (lisp ℤ (x y) (CL:- x y)))
+  ;; (pure ◂ ∀ α (α → IO α))
+  ;; (pure ≜ Λ α. λ x. (λ f. ) )
 
-;;   ;; (main ≜ do
-;;   ;;   (line ← read-ln)
-;;   ;;   (print-ln ("hello, " ⋅ line ⋅ "!"))
-;;   ;;   (pure 2))
+  (print ◂ String → IO Unit)
+  (print string ≜ λ v (lisp (Unit → Unit) ()
+                            (CL:LAMBDA ()
+                              (CL:PRINC string)
+                              (OPAL:MK-VAL 0))))
+  ;; (print x ≜ λ f. (λ ) (lisp (Unit → IO Unit) (x) (CL:LAMBDA (v) CL:PRINC x)))
 
-;;   (main ≜ (>> (print-ln "hello-world!") (pure 2))))
+  (id ◂ ∀ α (α → α))
+  (id ≜ Λ α (λ x x))
+
+  (ℤ ◂ τ)
+  (ℤ ≜ native CL:INTEGER)
+
+  ((+) ◂ ℤ → ℤ → ℤ)
+  ((x + y) ≜ (lisp ℤ (x y) (CL:+ x y)))
+
+  ((-) ◂ ℤ → ℤ → ℤ)
+  ((x - y) ≜ (lisp ℤ (x y) (CL:- x y)))
+
+  (x ≜ (2 - 3) + id ℤ 3))
 
 
-(NAMED-READTABLES:IN-READTABLE CL:NIL) 
-
-;; (opal:run-main)
-
-;; IO Monad Representation
-;; pure x → (lambda () x)
-;; m >> m' → (lambda () (funcall m) (funcall m'))
-;; m >>= f → (lambda () (funcall f (funcall m)))
-;;
-;;
-;;
-;;
-;;
-;;
-;;
-;;
-;;
-;;
-;;
-;;
-;;
-;;
-;;
+(NAMED-READTABLES:IN-READTABLE ()) 

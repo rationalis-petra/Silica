@@ -11,6 +11,7 @@
                :iterate
                :trivia
                :esrap
+               :cl-unicode
                :named-readtables)
   :pathname "src"
   :components

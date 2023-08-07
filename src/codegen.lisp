@@ -1,8 +1,6 @@
 (in-package :opal)
 
 (defvar *opal-modules* (make-hash-table))
-(defun run-main ()
-  (funcall (gethash (sym "main") (gethash (sym "main") *opal-modules*))))
 
 
 ;; ;; bidirectional typechecking
@@ -19,7 +17,7 @@
     `(lambda (,(var term))
        ,(reify (body term) env)))
 
-  (:method ((term quantify) env)
+  (:method ((term abstract) env)
     "Reify a type forall term (Λ α.e). These are erased at runtime, and so are
 equivalent to their bodies." 
     (reify (body term) env))
@@ -43,7 +41,8 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
     (labels
         ((mk-binds (defs)
            (iter (for def in defs)
-             (collect (list (var def) (reify (val def) env)))))
+             (when (typep def 'opal-definition)
+               (collect (list (var def) (reify (val def) env))))))
          (mk-hashmap (vars)
            ;; We can safely use a non-hygenic macro, as all opal code will only
            ;; contain symbols in the *opal-symbols* package.
