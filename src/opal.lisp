@@ -16,11 +16,11 @@
    :reify ;; compile
 
    ;; comparisons
-   :α= ;; k=?
+   :α=
 
    ;; Constructors and values
    :mk-λ :mk-struct :mk-var :mk-abs :mk-val :mk-app :mk-proj
-   :mk-∀ :mk-sig :mk-arr :mk-native :mk-tapp
+   :mk-∀ :mk-sig :mk-arr :mk-native :mk-tapp :mk-tvar :mk-mvar
    :mk-kind :mk-karr
    :mk-def :mk-decl
    :kind-type

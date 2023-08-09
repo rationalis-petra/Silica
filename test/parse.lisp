@@ -24,5 +24,16 @@
           (infixify '(sym::|lisp| ((1) + 2) nil (3 - 4)))))
 
   (define-test to-def)
-  (define-test to-ast)
+  (define-test to-ast
+    (is α= (mk-var 'x) (to-ast 'x))
+
+    (is α=
+        (mk-∀ 'x (mk-var 'x))
+        (to-ast '(sym::|∀| x x)))
+
+    (is α=
+        (mk-sig (list
+                 (mk-decl 'x (mk-var 'a))
+                 (mk-decl 'y (mk-var 'b))))
+        (to-ast '(sym::|Σ| (sym::◂ x a) (sym::◂ y b)))))
   (define-test module))

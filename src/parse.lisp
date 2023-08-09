@@ -84,6 +84,8 @@
         (mk-abstraction term #'mk-abs))
        ((eq *sigma-sym* (car term))
         (mk-struct (mapcar #'to-def (cdr term))))
+       ((eq *cap-sigma-sym* (car term))
+        (mk-sig (mapcar #'to-def (cdr term))))
        ((eq *pi-sym* (car term))
         (mk-proj (cadr term) (to-ast (caddr term))))
        ((eq *lisp-sym* (car term))

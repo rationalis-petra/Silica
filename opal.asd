@@ -30,4 +30,5 @@
   :components
   ((:file "typecheck" :depends-on ("opal-tests"))
    (:file "equality" :depends-on ("opal-tests"))
+   (:file "parse" :depends-on ("opal-tests"))
    (:file "opal-tests")))

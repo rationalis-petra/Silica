@@ -7,8 +7,38 @@
    (opl-exports)
    (opal-struct)))
 
+;; 'untyped' terms; 
+(defclass var (term opal-type)
+  ((var
+    :type symbol
+    :reader var
+    :initarg :var)))
+(defclass app (term opal-type)
+  ((left
+    :type term
+    :reader left
+    :initarg :left)
+   (right
+    :type (or term type)
+    :reader right
+    :initarg :right)))
+
 ;; Terms
 (defclass term () ())
+(defclass term-var (term)
+  ((var
+    :type symbol
+    :reader var
+    :initarg :var)))
+;; (defclass term-app (term opal-type)
+;;   ((left
+;;     :type term
+;;     :reader left
+;;     :initarg :left)
+;;    (right
+;;     :type (or term type)
+;;     :reader right
+;;     :initarg :right)))
 (defclass lisp-form (term)
   ((form
     :type t
@@ -58,15 +88,6 @@
     :type term
     :reader body
     :initarg :body)))
-(defclass app (term opal-type)
-  ((left
-    :type term
-    :reader left
-    :initarg :left)
-   (right
-    :type (or term type)
-    :reader right
-    :initarg :right)))
 ;; Structure related
 (defclass opal-struct (term)
   ((entries
@@ -104,6 +125,11 @@
 
 
 (defclass opal-type () ())
+(defclass type-var (opal-type)
+  ((var
+    :type symbol
+    :reader var
+    :initarg :var)))
 (defclass native-type (opal-type)
   ((native-type
     :type t
@@ -168,11 +194,6 @@
     :reader to
     :initarg :to)))
 
-(defclass var (term opal-type)
-  ((var
-    :type symbol
-    :reader var
-    :initarg :var)))
 
 ;; Untyped declarations and definitions
 ;; these are replaced with either type or val declarations or definitions during typechecking.
@@ -236,6 +257,10 @@
       (make-instance 'abstract :var var :body snd)))
 (defun mk-var (var)
   (make-instance 'var :var var))
+(defun mk-tvar (var)
+  (make-instance 'type-var :var var))
+(defun mk-mvar (var)
+  (make-instance 'term-var :var var))
 (defun mk-app (left right)
   (make-instance 'app :left left :right right))
 (defun mk-struct (defs)
@@ -247,6 +272,8 @@
 
 (defgeneric atomic? (term)
   (:method ((term var)) t)
+  (:method ((term type-var)) t)
+  (:method ((term term-var)) t)
   (:method ((term opal-literal)) t)
   (:method ((term kind-type)) t)
   (:method (term) nil))
@@ -263,7 +290,7 @@
       (when (eq (var decl) field)
         (return (ann decl))))))
 
-;; TODO: α<
+; TODO: α<
 (defgeneric α= (l r &optional renamings shadowed)
   (:documentation "Predicate: return true if two terms equal up to α-renaming")
   ;; Terms 
@@ -332,6 +359,21 @@
                    (member (var r) (cdr shadowed)))
                (eq (var l) (var r))))))
     
+  (:method ((l term-var) (r term-var) &optional renamings shadowed)
+    (let ((entry (assoc (var l) renamings)))
+      (if entry
+          (eq (cdr entry) (var r))
+          (and (eq (member (var l) (car shadowed))
+                   (member (var r) (cdr shadowed)))
+               (eq (var l) (var r))))))
+    
+  (:method ((l type-var) (r type-var) &optional renamings shadowed)
+    (let ((entry (assoc (var l) renamings)))
+      (if entry
+          (eq (cdr entry) (var r))
+          (and (eq (member (var l) (car shadowed))
+                   (member (var r) (cdr shadowed)))
+               (eq (var l) (var r))))))
 
   (:method ((l signature) (r signature) &optional renamings shadowed)
     (and 
@@ -370,6 +412,10 @@
 
   (:method ((val var))
     (string (var val)))
+  (:method ((val term-var))
+    (concatenate 'string "tm/" (string (var val))))
+  (:method ((val type-var))
+    (concatenate 'string "ty/" (string (var val))))
 
   (:method ((val app))
     (let ((stream (make-string-output-stream)))

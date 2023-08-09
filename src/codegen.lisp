@@ -25,14 +25,21 @@ equivalent to their bodies."
   (:method ((term var) env)
     "Reify a var (x). This is trivial, just extract the var's symbol"
     (var term))
+  (:method ((term term-var) env)
+    "Reify a term var (x). This is trivial, just extract the var's symbol"
+    (var term))
 
   (:method ((term app) env)
     "Reify an application (e e'). An application may be either a type or term
 application. If it is a type application, then we erase it. Otherwise, convert
 it to a funcall."
     (typecase (right term)
-      (opal-type (reify (left term) env))
-      (term `(funcall ,(reify (left term) env) ,(reify (right term) env)))))
+      (term
+       ;(format t "rhs (~A) is term (~A)!" term (type-of term))
+       `(funcall ,(reify (left term) env) ,(reify (right term) env)))
+      (opal-type
+       ;(format t "rhs (~A) is type (~A)!" term (type-of term))
+       (reify (left term) env))))
 
 
   (:method ((term opal-struct) env)
@@ -43,6 +50,10 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
            (iter (for def in defs)
              (when (typep def 'opal-definition)
                (collect (list (var def) (reify (val def) env))))))
+         (get-vars (entries)
+           (iter (for entry in entries)
+             (when (typep entry 'opal-definition)
+               (collect (var entry)))))
          (mk-hashmap (vars)
            ;; We can safely use a non-hygenic macro, as all opal code will only
            ;; contain symbols in the *opal-symbols* package.
@@ -52,7 +63,7 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
               hashmap)))
       `(let*
            (,@(mk-binds (entries term)))
-         ,(mk-hashmap (mapcar #'var (entries term))))))
+         ,(mk-hashmap (get-vars (entries term))))))
 
   (:method ((term projection) env)
     "Reify a field access (s.f). Do do this by converting it to (gethash 'f s)"
