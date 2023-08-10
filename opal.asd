@@ -19,7 +19,8 @@
 
    (:file "codegen" :depends-on ("syntax"))
    (:file "parse" :depends-on ("syntax"))
-   (:file "typecheck" :depends-on ("syntax"))
+   (:file "typecheck" :depends-on ("type-manipulation"))
+   (:file "type-manipulation" :depends-on ("syntax"))
    (:file "syntax" :depends-on ("opal"))
    (:file "opal")))
 

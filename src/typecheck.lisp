@@ -1,139 +1,5 @@
 (in-package :opal)
 
-;;(defstruct env )
-
-;; Bind var to ty in env.
-(declaim (ftype (function (symbol (or opal-type kind) list) cons) bind))
-(defun bind (var ty env)
-  (cons (acons var ty (car env)) (acons var nil (cdr env))))
-
-
-(defparameter +empty-env+ (cons nil nil))
-
-;; Bind var to val in env.
-;; Mostly for, e.g. looking up types in the environment. 
-(defun bind-existing-val (var val env)
-  (labels ((build-vals (var val alist)
-             (match alist
-               ((guard (cons (cons nvar _) rest)
-                       (eq var nvar))
-                (acons var val rest))
-               ((cons (cons nvar nval) rest)
-                (acons nvar nval (build-vals var val rest)))
-               (nil (error "Tried to insert val for non-bound var ~A" var)))))
-    (cons (car env)
-          ;; iterate down the value env until we find a key
-          (build-vals var val (cdr env)))))
-
-(defun bind-2 (var ty val env)
-  (cons (acons var ty (car env)) (acons var val (cdr env))))
-
-(declaim (ftype (function (symbol list) (or null opal-type kind)) lookup))
-(defun lookup (var env)
-  (or (cdr (assoc var (car env)))
-      (error (format nil "Can't find variable ~A in environment" var))))
-
-(defun lookup-val (var env)
-  (or (cdr (assoc var (car env)))
-      (error (format nil "Can't find value of type ~A in environment" var))))
-
-(defun join (env-1 env-2)
-  (cons (append (car env-1) (car env-2))
-        (append (cdr env-1) (cdr env-2))))
-
-
-;; (defgeneric validate-type (ty env)
-;;   (:method ((type var))
-;;     (when (typep (lookup ty env) 'kind)
-;;       (mk-tvar (var type))))
-;;   (:method ((type forall))
-;;     ()
-;;     )
-;;   (:method ((type signature)))
-;;   (:method ((type arrow))
-;;     (mk-arr (validate-type (left type) env)
-;;             (validate-type (right type) env)))
-;;   (:method ((type native)) type))
-
-(defgeneric ty-subst (type subt)
-  (:method ((type var) subst)
-    (or (cdr (assoc (var type) subst))
-        (mk-tvar (var type))))
-  (:method ((type type-var) subst)
-    (or (cdr (assoc (var type) subst))
-        type))
-
-  (:method ((type tapp) subst)
-    (mk-tapp (ty-subst (left type) subst) (ty-subst (right type) subst)))
-
-  (:method ((type app) subst)
-    (mk-tapp (ty-subst (left type) subst) (ty-subst (right type) subst)))
-
-  (:method ((type forall) subst) 
-    (if (slot-boundp type 'var-kind)
-        (mk-∀
-         (var type)
-         (var-kind type)
-         (ty-subst (body type)
-                   (remove-if (lambda (x) (eq (car x) (var type))) subst)))
-        (mk-∀
-         (var type)
-         (ty-subst (body type)
-                   (remove-if (lambda (x) (eq (car x) (var type))) subst)))))
-
-  (:method ((type arrow) subst) 
-    (mk-arr
-     (ty-subst (from type) subst)
-     (ty-subst (to type) subst)))
-
-  (:method ((type native-type) subst) type)
-  (:method ((kind kind) subst) kind))
-
-
-(defgeneric ty-reduce (type)
-  (:method ((type forall))
-    (mk-∀ (var type) (var-kind type)
-          (ty-reduce (body type))))
-
-  (:method ((type arrow))
-    (mk-arr (ty-reduce (from type))
-            (ty-reduce (to type))))
-
-  (:method ((type app)) (ty-reduce (mk-tapp (left type) (right type))))
-  (:method ((type tapp))
-    (let ((left-v2 (ty-reduce (left type))))
-      (typecase left-v2
-        (forall (ty-subst (body left-v2)
-                          (acons (var left-v2)
-                                 (ty-reduce (right type))
-                                 nil)))
-        (t (mk-tapp left-v2 (ty-reduce (right type)))))))
-
-  (:method ((type signature))
-    (mk-sig
-     (mapcar (lambda (decl)
-               (mk-decl (var decl) (ty-reduce (ann decl))))
-             (declarations type))))
-
-  (:method ((type type-var)) type)
-  (:method ((type var)) type)
-  (:method ((type native-type)) type)
-  (:method ((kind kind)) kind))
-
-(defun ty-eval (type env)
-  (let* ((vals (iter (for entry in (cdr env))
-                (when (cdr entry) (collect entry))))
-         (val (ty-reduce (ty-subst type vals))))
-    val))
-
-;; α-reduce= : 
-(defun α-r= (l r env)
-  "Tests for α-equality in environment env. This allows substituting types for
-values, to deal with existential typing."
-    (α= (ty-eval l env) (ty-eval r env)))
-
-
-
 ;; we use biridrectional typechecking
 ;; i.e. 1x check method, 1x infer method
 (declaim (ftype (function (t t t) (or term opal-type)) check))
@@ -184,22 +50,20 @@ values, to deal with existential typing."
                 (body-check (from type) (to type))))))
 
   (:method ((term abstract) (type forall) env)
-    (flet ((body-check (from to)
-             ;; TODO: perform α-conversion/equality, as ∀ and Λ may bind
-             ;; different variables!
-             ))
+    (flet ((body-check (body type var1 var2 kind)
+             (if (eq var1 var2)
+                 (check body type (bind var2 kind env))
+                 (check body
+                        (ty-subst var1 (acons var1 (mk-tvar var2) nil))
+                        (bind var2 kind env)))))
       ;; TODO: 
-      (unless (equal (var term) (var type))
-        (error (format nil "Limitation in typechecker: ∀ and Λ must have same
-    symbol, have ~A and ~A" (var term) (var type))))
       (unless (or (not (slot-boundp term 'var-kind))
-                  (not (slot-boundp type 'var-kind))
+                  ;; (not (slot-boundp type 'var-kind))
                   (α= (var-kind term) (var-kind type)))
         (error (format nil "Type check failed due to kind mismatch")))
       
       (mk-abs (var term) (var-kind type)
-              (check (body term) (body type)
-                     (bind (var term) (var-kind type) env)))))
+              (body-check (body term) (body type) (var type) (var term) (var-kind type)))))
 
   (:method ((term opal-struct) (type signature) env)
     (labels ((has-repeating-field (list)
@@ -219,7 +83,7 @@ values, to deal with existential typing."
        (iter (for entry in (entries term))
          (with decls = (declarations type))
          ;; locals = local declarations
-         (with locals = nil)
+         (with locals = +empty-env+)
          (with prev-decl = nil)
          ;; (with type-vals = nil)
          (typecase entry
@@ -413,7 +277,7 @@ values, to deal with existential typing."
 
         (iter (for entry in (entries term))
           ;; locals = local declarations
-          (with locals = nil)
+          (with locals = +empty-env+)
           (with prev-decl = nil)
           ;; (with type-vals = nil)
           (typecase entry

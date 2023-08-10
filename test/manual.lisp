@@ -26,12 +26,20 @@
   (cons ≜ Λ α (λ (val list) (Λ β (λ (base rec) (rec val (list β base rec))))))
 
   ;; TODO: fix the typechecker so I work!
-  ;; (map ◂ ∀ (α β) ((α → β) → List α → List β))
-  ;; (map ≜ Λ (α β) (λ (f l) (Λ γ (l (List β γ) nil (λ (val rest) (cons β (f val) rest))))))
+  (map ◂ ∀ (α β) ((α → β) → List α → List β))
+  (map ≜ Λ (α β) (λ (f l) (Λ γ (l (List β γ) nil (λ (val rest) (cons β (f val) rest))))))
+
+
 
   ((*) ◂ τ → τ → τ)
   ((*) ≜ ∀ (α β) (Σ (fst ◂ α) (snd ◂ β)))
 
+
+
+
+
+  ;; Lisp Bridge
+  
   (ClList ◂ τ)
   (ClList ≜ native CL:INTEGER)
 
@@ -51,6 +59,10 @@
 
   (to-int ◂ ℕ → ℤ)
   (to-int n ≜ (lisp ℤ (n) (OPAL/UTIL:APP-CURRY n 0 (CL:LAMBDA (x) (CL:+ x 1)))))
+
+
+
+  ;; Experimentation
 
   ;; (nat-list ◂ ∀ α (List (ℕ α)))
   ;; (nat-list ≜ Λ α ())

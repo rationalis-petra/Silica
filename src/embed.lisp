@@ -23,7 +23,7 @@
   (declare (ignore name imports exports))
   (let* ((infixified (infixify defs))
          (ast (mapcar #' to-def infixified))
-         (result (infer (mk-struct ast) nil))
+         (result (infer (mk-struct ast) +empty-env+))
          (expr (reify (cdr result) nil))
          )
 
