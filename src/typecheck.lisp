@@ -37,7 +37,6 @@
         term
         (error (format nil "Term ~A does not have type ~A~%" term type))))
 
-  ;; TODO: also check if type is a kind-arrow, for system Fω 
   (:method ((term opal-lambda) (type arrow) env)
     (flet ((body-check (from to)
              (check (body term) to (bind (var term) from env))))
@@ -45,16 +44,27 @@
           (if (α-r= (from type) (check (var-type term) (mk-kind) env) env)
               (body-check (var-type term) (to type))
               (error "Declared function argument type doesn't match actual type"))
-          (mk-λ (var term)
+          (mk-mλ (var term)
                 (from type)
                 (body-check (from type) (to type))))))
+
+  (:method ((term opal-lambda) (type kind-arrow) env)
+    (flet ((body-check (from to)
+             (check (body term) to (bind (var term) from env))))
+      (if (slot-boundp term 'var-type)
+          (if (α= (from type) (var-type term))
+              (body-check (var-type term) (to type))
+              (error "Declared type constructor argument kind doesn't match actual kind"))
+          (mk-tλ (var term)
+                 (from type)
+                 (body-check (from type) (to type))))))
 
   (:method ((term abstract) (type forall) env)
     (flet ((body-check (body type var1 var2 kind)
              (if (eq var1 var2)
                  (check body type (bind var2 kind env))
                  (check body
-                        (ty-subst var1 (acons var1 (mk-tvar var2) nil))
+                        (ty-subst type (acons var1 (mk-tvar var2) nil))
                         (bind var2 kind env)))))
       ;; TODO: 
       (unless (or (not (slot-boundp term 'var-kind))
@@ -75,23 +85,24 @@
       ;; If it has repeating fields, typecheck fails
       (when (has-repeating-field
              (iter (for entry in (entries term))
-               (when (typep entry 'opal-definition)
+               (when (typep (binder entry) 'opal-definition)
                  (collect (var entry)))))
         (error "Repeating definitions in term: ~A" term))
 
       (mk-struct
        (iter (for entry in (entries term))
-         (with decls = (declarations type))
+             (for binder = (binder entry))
+             (with decls = (declarations type))
          ;; locals = local declarations
          (with locals = +empty-env+)
          (with prev-decl = nil)
          ;; (with type-vals = nil)
          (typecase entry
            (opal-definition
-            (let* ((decl (or prev-decl (pop decls)))
+            (let* ((decl (or (when prev-decl (binder prev-decl)) (pop decls)))
                    (new-val
                      (check
-                      (val entry)
+                      (val binder)
                       (ty-eval (ann decl) (join locals env))
                       (join locals env))))
 
@@ -127,8 +138,12 @@
               (setf locals (bind (var decl) (ann decl) locals)))))))))
 
   (:method ((term projection) (type opal-type) env)
-    (let ((struct-ty (infer (opal-struct term) env)))
-      (α-r= (get-field struct-ty (field term)) type env)))
+    (let* ((struct-result (infer (opal-struct term) env))
+           (struct-ty (car struct-result))
+           (struct-val (cdr struct-result)))
+      (if (α-r= (get-field struct-ty (field term)) type env)
+          (mk-proj (field term) struct-val)
+          (error "bad projection"))))
 
   (:method ((term app) (type opal-type) env)
     (let* ((left-result (infer (left term) env))
@@ -142,10 +157,13 @@
         (arrow
          (unless (and (α-r= (from lt) rt env) (α-r= (to lt) type env))
            (error "Bad application of function")))
+        (kind-arrow
+         (unless (and (α= (from lt) rt) (α= (to lt) type))
+           (error "Bad application of type constructor")))
         (forall
          (unless (and (or (not (slot-boundp lt 'var-kind))
                       (α= (var-kind lt) rt))
-                  (α-r= (ty-reduce (mk-tapp lt (right term)))
+                  (α-r= (ty-subst (body lt) (acons (var lt) rt nil))
                         type
                         env))
            (error "Bad application of abstraction")))
@@ -154,22 +172,18 @@
 
   ;; Kind Checking
   (:method ((type native-type) (kind kind-type) env) type)
+
   (:method ((type arrow) (kind kind-type) env)
-    ;; TODO: iterate through and check for well-formedness
-    type)
+    (mk-arr (check (from type) kind env) (check (to type) kind env)))
+
   (:method ((type signature) (kind kind-type) env)
     ;; TODO: iterate through & check for well-formedness
     type)
 
-  (:method ((type forall) (kind kind-arrow) env)
-    (if 
-     (α= (from kind)
-           (if (slot-boundp type 'var-kind) (var-kind type) (mk-kind)))
-     (mk-∀ (var type) (from kind)
-           (check (body type) (to kind) (bind (var type) (from kind) env)))
-     (error "Kind check failed, ~A ≠ ~A"
-            (from kind)
-            (if (slot-boundp type 'var-kind) (var-kind type) (mk-kind)))))
+  (:method ((type forall) (kind kind-type) env)
+    (let ((kind (if (slot-boundp type 'var-kind) (var-kind type) (mk-kind)))) 
+     (mk-∀ (var type) kind
+           (check (body type) (mk-kind) (bind (var type) kind env)))))
 
   ;; Failure cases
   (:method ((term term) (type opal-type) env)
@@ -177,6 +191,9 @@
 
   (:method ((type opal-type) (kind kind) env)
     (error (format nil "Failed to typecheck type ~A as kind ~A~%" type kind)))
+
+  (:method ((type-1 opal-type) (type-2 opal-type) env)
+    (error (format nil "Failed to typecheck type ~A as type ~A~%" type-1 type-2)))
 
   (:method ((term term) (kind kind) env)
     (error (format nil "Failed to typecheck term ~A as kind ~A~%. Note: Terms to
@@ -221,12 +238,19 @@
 
   (:method ((term opal-lambda) env)
     (if (slot-boundp term 'var-type)
-        (let* ((arg-ty (check (var-type term) (mk-kind) env))
+        (let* ((arg-ty (if (typep (var-type term) 'kind)
+                           (ty-eval (var-type term) env)
+                           (check (ty-eval (var-type term) env) (mk-kind) env)))
                (body-result (infer (body term)
                                    (bind (var term) arg-ty env))))
-          (cons 
-           (mk-arr arg-ty (car body-result))
-           (mk-λ (var term) arg-ty (cdr body-result))))
+          (if
+           (typep arg-ty 'kind)
+           (cons
+            (mk-karr arg-ty (car body-result))
+            (mk-tλ (var term) arg-ty (cdr body-result)))
+           (cons 
+            (mk-arr arg-ty (car body-result))
+            (mk-mλ (var term) arg-ty (cdr body-result)))))
         (error "To infer type of lambda, arguments must be annotated.")))
 
   (:method ((term abstract) env)
@@ -250,81 +274,94 @@
         (arrow
          (if (α-r= (from lt) rt env)
              (cons (to lt) (mk-app lv rv))
-             (error "Bad application of type ~A to ~A" lt rt)))
-        ;; TODO instead of checking if it IS a forall, check that the type has kind _ → _
+             (error "Bad application: term of type ~A cannot be applied to term
+           of type ~A" rt lt)))
+        (kind-arrow
+         (if (α= (from lt) rt)
+             (cons (to lt) (mk-tapp lv rv))
+             (error "Bad application: type of kind ~A cannot be applied to type
+           of kind ~A" rt lt)))
         (forall
          (if (α= (var-kind lt) rt)
              (cons 
-              (ty-reduce (mk-tapp lt (right term)))
+              (ty-subst (body lt) (acons (var lt) (right term) nil))
               (mk-app lv rv))
              (error "Bad application of abstraction: mismatched kinds ~A and ~A"
                     (var-kind lt) rt)))
         (t (error "Applying to neither function or abstraction of type: ~A" (show lt))))))
 
   (:method ((term opal-struct) env)
-      (labels ((has-repeating-field (list)
+    (labels ((has-repeating-field (list)
                (cond
                  ((null list) nil)
                  ((member (car list) (cdr list)) t)
                  (t (has-repeating-field (cdr list))))))
 
-        ;; If it has repeating fields, typecheck fails
-        (when (has-repeating-field
-               (iter (for entry in (entries term))
-                 (when (typep entry 'opal-definition)
-                   (collect (var entry)))))
-          (error "Repeating definitions in term: ~A" term))
+      ;; If it has repeating fields, typecheck fails
+      (when (has-repeating-field
+             (iter (for entry in (entries term))
+               (when (typep (binder entry) 'opal-definition)
+                 (collect (var entry)))))
+        (error "Repeating definitions in term: ~A" term))
 
-        (iter (for entry in (entries term))
-          ;; locals = local declarations
-          (with locals = +empty-env+)
-          (with prev-decl = nil)
-          ;; (with type-vals = nil)
-          (typecase entry
-            (opal-definition
-             (let* ((new-entry
-                      (if prev-decl 
-                          (let ((ty (ty-eval (ann prev-decl) (join locals env))))
-                            (cons ty (check (val entry) ty (join locals env))))
-                          (infer
-                           (val entry)
-                           (join locals env))))
-                    (new-ty (car new-entry))
-                    (new-val (cdr new-entry)))
+      (iter (for entry in (entries term))
+        (for binder = (binder entry))
+        ;; locals = local declarations
+        (with locals = +empty-env+)
+        (with prev-decl = nil)
+        ;; (with type-vals = nil)
+        (typecase binder
+          (opal-definition
+           (let* ((new-entry
+                    (if prev-decl 
+                        (let ((ty (ty-eval (ann (binder prev-decl)) (join locals env))))
+                          (cons ty (check (val binder) ty (join locals env))))
+                        (infer
+                         (val (binder entry))
+                         (join locals env))))
+                  (new-ty (car new-entry))
+                  (new-val (cdr new-entry)))
 
-               (unless (or (not prev-decl) (eq (var entry) (var prev-decl)))
-                 (error "Definition variable not equal to declaration variable: ~A ~A"
-                        (var entry) (var prev-decl)))
+             ;; TODO: account for renaming?
+             (unless (or (not prev-decl) (eq (var entry) (var prev-decl)))
+               (error "Definition variable not equal to declaration variable: ~A ~A"
+                      (var entry) (var prev-decl)))
 
 
-               ;; Update locals
-               (typecase new-ty
-                 ;; if current definition defines a term, check if it's been declared
-                 ;; if not, add it into the locals
-                 (opal-type
-                  (unless prev-decl
-                    (setf locals (bind (var entry) new-ty locals))))
-                 (kind
-                  ;; if current definition defines a type, add it's kind and
-                  ;; value into local
-                  (if prev-decl
-                      (setf locals (bind-existing-val (var entry) new-val locals))
-                      (setf locals (bind-2 (var entry) new-ty new-val locals)))))
+             ;; Update locals
+             (typecase new-ty
+               ;; if current definition defines a term, check if it's been declared
+               ;; if not, add it into the locals
+               (opal-type
+                (unless prev-decl
+                  (setf locals (bind (var binder) new-ty locals))))
+               (kind
+                ;; if current definition defines a type, add it's kind and
+                ;; value into local
+                (if prev-decl
+                    (setf locals (bind-existing-val (var binder) new-val locals))
+                    (setf locals (bind-2 (var binder) new-ty new-val locals)))))
 
-               (collect (or prev-decl (mk-decl (var entry) new-ty)) into out-decls)
-               (collect (or prev-decl (mk-decl (var entry) new-ty)) into out-entries)
-               (collect (mk-def (var entry) new-val) into out-entries)
-               (setf prev-decl nil)))
-            (opal-declaration
-             (setf prev-decl entry)
-             (setf locals (bind (var entry) (ty-eval (ann entry) (join locals env)) locals))))
-          (finally (return (cons (mk-sig out-decls) (mk-struct out-entries)))))))
+             (collect (or (when prev-decl (binder prev-decl))
+                          (mk-decl (var binder) new-ty))
+               into out-decls)
+             (collect (or (when prev-decl (binder prev-decl))
+                          (mk-decl (var binder) new-ty))
+               into out-entries)
+             (collect (mk-def (var binder) new-val) into out-entries)
+             (setf prev-decl nil)))
+          (opal-declaration
+           (setf prev-decl entry)
+           (setf locals (bind (var binder) (ty-eval (ann binder) (join locals env)) locals))))
+        (finally (return (cons (mk-sig out-decls) (mk-struct out-entries)))))))
 
   (:method ((term projection) env)
-    (let ((struct-result (infer (opal-struct term) env)))
+    (let* ((struct-result (infer (opal-struct term) env))
+           (struct-ty (car struct-result))
+           (struct-val (cdr struct-result)))
       (cons 
-       (get-field (car struct-result) (field term))
-       (mk-proj (field term) (opal-struct term)))))
+       (get-field struct-ty (field term))
+       (mk-proj (field term) struct-val))))
 
   (:method ((term term) env)
     (error (format nil "Cannot infer type of term ~A~%" term)))

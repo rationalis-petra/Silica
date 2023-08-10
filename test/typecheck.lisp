@@ -1,56 +1,85 @@
 (in-package :opal.tests)
 
+;; https://gist.github.com/zmactep/c5e167c86fb8d80dcd5532792371863f
+;; https://arxiv.org/abs/1803.02473
+;; https://www.reddit.com/r/haskell/comments/3tajp9/an_alternative_to_church_scott_and_perigot/
+
 (defparameter int-type (make-instance
                         'opal::native-type
                         :native-type 'integer))
 
 (defparameter τ (mk-kind))
+(defparameter κ (mk-kind))
 
 (define-test typing
   (define-test type-check
-    ;; int : τ
+    ;; int : κ
     (is α= int-type
-        (opal:check int-type τ +empty-env+))
+        (opal:check int-type κ +empty-env+))
 
-    ;; int → int : τ
+    ;; int → int : κ
     (is α= (mk-arr int-type int-type)
-        (opal:check (mk-arr int-type int-type) τ +empty-env+))
+        (opal:check (mk-arr int-type int-type) κ +empty-env+))
 
-    ;; ∀ a. a ◂ τ → τ
+    ;; (bot) ∀ a. a ◂ κ
     (is α= (mk-∀ 'a (mk-tvar 'a))
-        (opal:check (mk-∀ 'a (mk-tvar 'a)) (mk-karr τ τ) +empty-env+))
+        (opal:check (mk-∀ 'a (mk-tvar 'a)) κ +empty-env+))
+
+    ;; (Id) λ α. α ◂ κ → κ
+    (is α=
+        (mk-tλ 'a τ (mk-tvar 'a))
+        (opal:check (mk-λ 'a (mk-var 'a)) (mk-karr κ κ) +empty-env+))
+
+    ;; (List) λ A. ∀ β (β → (A → β → β) → β) ◂ κ → κ
+    (is α=
+        (mk-tλ 'A κ (mk-∀ 'β κ (mk-arr (mk-tvar 'β)
+                                       (mk-arr (mk-arr (mk-tvar 'A)
+                                                       (mk-arr (mk-tvar 'β)
+                                                               (mk-tvar 'β)))
+                                               (mk-tvar 'β)))))
+        (opal:check (mk-λ 'A
+                          (mk-∀ 'β
+                                (mk-arr (mk-var 'β)
+                                        (mk-arr (mk-arr (mk-var 'A)
+                                                        (mk-arr (mk-var 'β)
+                                                                (mk-var 'β)))
+                                                (mk-var 'β)))))
+                    (mk-karr κ κ)
+                    +empty-env+))
 
     ;; w : int
     (is α= (mk-val 2)
            (opal:check (mk-val 2) int-type +empty-env+))
 
     ;; (λ x. 2) : int → int
-    (is α= (mk-λ 'x int-type (mk-val 2))
+    (is α= (mk-mλ 'x int-type (mk-val 2))
         (opal:check (mk-λ 'x (mk-val 2))
                     (mk-arr int-type int-type)
                     +empty-env+))
 
     ;; (Λ a. λ x. x) : ∀ a. a → a
-    (is α= (mk-abs 'a τ (mk-λ 'x (mk-tvar 'a) (mk-mvar 'x)))
+    (is α= (mk-abs 'a τ (mk-mλ 'x (mk-tvar 'a) (mk-mvar 'x)))
         (opal:check (mk-abs 'a (mk-λ 'x (mk-var 'x)))
                     (mk-∀ 'a (mk-arr (mk-tvar 'a) (mk-tvar 'a)))
                     +empty-env+))
 
     ;; (σ (x ≜ 2) (y ≜ 3)) : (Σ (x : int) (y : int))
-    (is α= (mk-struct (list
+    (is α= (mk-struct (entries
                        (mk-decl 'x int-type)
                        (mk-def 'x (mk-val 2))
                        (mk-decl 'y int-type)
                        (mk-def 'y (mk-val 3))))
         (opal:check
-         (mk-struct (list (mk-def 'x (mk-val 2))
-                          (mk-def 'y (mk-val 3))))
-         (mk-sig (list (mk-decl 'x int-type)
-                       (mk-decl 'y int-type)))
+         (mk-struct (entries
+                     (mk-def 'x (mk-val 2))
+                     (mk-def 'y (mk-val 3))))
+         (mk-sig (entries
+                  (mk-decl 'x int-type)
+                  (mk-decl 'y int-type)))
          +empty-env+))
 
     (is α=
-        (mk-app (mk-λ 'x int-type (mk-mvar 'x))
+        (mk-app (mk-mλ 'x int-type (mk-mvar 'x))
                 (mk-val 2))
         (opal:check (mk-app (mk-λ 'x int-type (mk-var 'x))
                             (mk-val 2))
@@ -60,9 +89,9 @@
     ;; kind checking
 
     (is α=
-        (mk-sig (list (mk-decl 'x int-type)
+        (mk-sig (entries (mk-decl 'x int-type)
                       (mk-decl 'y int-type)))
-        (opal:check (mk-sig (list (mk-decl 'x int-type)
+        (opal:check (mk-sig (entries (mk-decl 'x int-type)
                                   (mk-decl 'y int-type)))
                     τ
                     +empty-env+)))
@@ -103,12 +132,12 @@
     (is α=
         (car (opal:infer
          (mk-struct
-          (list (mk-def 'x (mk-val 2))
+          (entries (mk-def 'x (mk-val 2))
                 (mk-decl 'y int-type)
                 (mk-def 'y (mk-val 3))))
          +empty-env+))
         (mk-sig
-         (list
+         (entries
           (mk-decl 'x int-type)
           (mk-decl 'y int-type))))
 
@@ -116,17 +145,17 @@
     (is α=
         (car (opal:infer
          (mk-struct
-          (list (mk-def 'x (mk-val 2))
+          (entries (mk-def 'x (mk-val 2))
                 (mk-def 'y (mk-var 'x))))
          +empty-env+))
         (mk-sig
-         (list
+         (entries
           (mk-decl 'x int-type)
           (mk-decl 'y int-type))))
 
     (is α=
         (car (opal:infer
-         (mk-proj 'x (mk-struct (list (mk-def 'x (mk-val 2)))))
+         (mk-proj 'x (mk-struct (entries (mk-def 'x (mk-val 2)))))
          +empty-env+))
         int-type))
 

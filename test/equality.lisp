@@ -4,6 +4,9 @@
                         'opal::native-type
                         :native-type 'integer))
 
+(defun entries (&rest terms)
+  (mapcar (lambda (term) (mk-entry (var term) term)) terms))
+
 (define-test equality
   (define-test type-alpha-equality
     (is α= (mk-kind) (mk-kind))
@@ -36,28 +39,30 @@
         (mk-∀ 'b (mk-arr int-type (mk-var 'b))))
 
     (is α=
-        (mk-sig (list (mk-decl 'x int-type)))
-        (mk-sig (list (mk-decl 'x int-type))))
+        (mk-sig (entries (mk-decl 'x int-type)))
+        (mk-sig (entries (mk-decl 'x int-type))))
 
     (is α=
-        (mk-sig (list
+        (mk-sig (entries
                  (mk-decl 'x int-type)
                  (mk-decl 'y (mk-∀ 'a (mk-var 'a)))))
-        (mk-sig (list
+        (mk-sig (entries
                  (mk-decl 'x int-type)
                  (mk-decl 'y (mk-∀ 'b (mk-var 'b))))))
 
     (is α=
-        (mk-struct (list
-                 (mk-decl 'x int-type)
-                 (mk-def 'x (mk-val 2))
-                 (mk-decl 'y (mk-∀ 'a (mk-arr (mk-var 'a) (mk-var 'a))))
-                 (mk-def 'y (mk-abs 'a (mk-λ 'x (mk-var 'a) (mk-var 'x))))))
-        (mk-struct (list
-                 (mk-decl 'x int-type)
-                 (mk-def 'x (mk-val 2))
-                 (mk-decl 'y (mk-∀ 'a (mk-arr (mk-var 'a) (mk-var 'a))))
-                 (mk-def 'y (mk-abs 'a (mk-λ 'x (mk-var 'a) (mk-var 'x))))))))
+        (mk-struct
+         (entries
+          (mk-decl 'x int-type)
+          (mk-def 'x (mk-val 2))
+          (mk-decl 'y (mk-∀ 'a (mk-arr (mk-var 'a) (mk-var 'a))))
+          (mk-def 'y (mk-abs 'a (mk-λ 'x (mk-var 'a) (mk-var 'x))))))
+        (mk-struct
+         (entries
+          (mk-decl 'x int-type)
+          (mk-def 'x (mk-val 2))
+          (mk-decl 'y (mk-∀ 'a (mk-arr (mk-var 'a) (mk-var 'a))))
+          (mk-def 'y (mk-abs 'a (mk-λ 'x (mk-var 'a) (mk-var 'x))))))))
 
   (define-test type-alpha-inequality
     (isnt α=
@@ -81,14 +86,14 @@
         (mk-∀ 'b (mk-arr int-type (mk-var 'a))))
 
     (isnt α=
-        (mk-sig (list (mk-decl 'x int-type)))
-        (mk-sig (list (mk-decl 'y int-type))))
+        (mk-sig (entries (mk-decl 'x int-type)))
+        (mk-sig (entries (mk-decl 'y int-type))))
 
     (isnt α=
-        (mk-sig (list
+        (mk-sig (entries
                  (mk-decl 'x (mk-arr (mk-var 'a) int-type))
                  (mk-decl 'y (mk-∀ 'a (mk-var 'a)))))
-        (mk-sig (list
+        (mk-sig (entries
                  (mk-decl 'x int-type)
                  (mk-decl 'y (mk-∀ 'b (mk-var 'b))))))))
 

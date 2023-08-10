@@ -22,6 +22,31 @@
     :type (or term type)
     :reader right
     :initarg :right)))
+(defclass opal-lambda (term opal-type)
+  ((var
+    :type symbol
+    :reader var
+    :initarg :var)
+   (var-type
+    :type (or opal-type kind)
+    :reader var-type
+    :initarg :var-type)
+   (body
+    :type term
+    :reader body
+    :initarg :body)))
+
+;; entry object; used in signatures/structures
+(defclass entry ()
+  ;; TODO: how to expand to inductive types (multiple vars/defs)
+  ((var
+    :type symbol
+    :reader var
+    :initarg :var)
+   (binder
+    :type (or opal-declaration opal-definition)
+    :reader binder
+    :initarg :binder)))
 
 ;; Terms
 (defclass term () ())
@@ -30,6 +55,7 @@
     :type symbol
     :reader var
     :initarg :var)))
+
 ;; (defclass term-app (term opal-type)
 ;;   ((left
 ;;     :type term
@@ -62,13 +88,13 @@
     :reader val-type
     :initarg :val-type)))
 ;; Lambda Related
-(defclass opal-lambda (term)
+(defclass term-lambda (term)
   ((var
     :type symbol
     :reader var
     :initarg :var)
    (var-type
-    :type opal-type
+    :type (or opal-type kind)
     :reader var-type
     :initarg :var-type)
    (body
@@ -167,11 +193,24 @@
     :type opal-type
     :reader body
     :initarg :body)))
+(defclass type-lambda (term)
+  ((var
+    :type symbol
+    :reader var
+    :initarg :var)
+   (var-kind
+    :type kind
+    :reader var-kind
+    :initarg :var-kind)
+   (body
+    :type term
+    :reader body
+    :initarg :body)))
 (defclass signature (opal-type)
-  ((declarations
+  ((entries
     :type list
-    :reader declarations
-    :initarg :declarations)))
+    :reader entries
+    :initarg :entries)))
 (defclass inductive-type (opal-type)
   ((kind
     :type kind
@@ -221,6 +260,8 @@
   (make-instance 'opal-declaration :var var :ann ann))
 (defun mk-def (var val)
   (make-instance 'opal-definition :var var :val val))
+(defun mk-entry (var bind)
+  (make-instance 'entry :var var :binder bind))
 
 ;; kind constructorss
 (defun mk-kind ()
@@ -240,8 +281,8 @@
   (make-instance 'arrow :from from :to to))
 (defun mk-tapp (left right)
   (make-instance 'tapp :left left :right right))
-(defun mk-sig (declarations)
-  (make-instance 'signature :declarations declarations))
+(defun mk-sig (entries)
+  (make-instance 'signature :entries entries))
 
 ;; Term constructors
 (defun mk-lisp (type form)
@@ -251,6 +292,16 @@
       (make-instance 'opal-lambda
                      :var var :var-type snd :body body)
       (make-instance 'opal-lambda :var var :body snd)))
+(defun mk-tλ (var snd &optional body)
+  (if body
+      (make-instance 'type-lambda
+                     :var var :var-kind snd :body body)
+      (make-instance 'type-lambda :var var :body snd)))
+(defun mk-mλ (var snd &optional body)
+  (if body
+      (make-instance 'term-lambda
+                     :var var :var-type snd :body body)
+      (make-instance 'term-lambda :var var :body snd)))
 (defun mk-abs (var snd &optional body)
   (if body
       (make-instance 'abstract :var var :var-kind snd :body body)
@@ -282,13 +333,13 @@
   (:method ((term opal-struct) field)
     (iter (for elt in (entries term))
       (when (and (eq (var elt) field)
-                 (typep elt 'opal-definition))
-        (return (ann elt)))))
+                 (typep (binder elt) 'opal-definition))
+        (return (val (binder elt))))))
 
   (:method ((term signature) field)
-    (iter (for decl in (declarations term))
-      (when (eq (var decl) field)
-        (return (ann decl))))))
+    (iter (for entry in (entries term))
+      (when (eq (var entry) field)
+        (return (ann (binder entry)))))))
 
 ; TODO: α<
 (defgeneric α= (l r &optional renamings shadowed)
@@ -302,6 +353,24 @@
     (and 
      (or (and (not (slot-boundp l 'var-type)) (not (slot-boundp r 'var-type)))
          (α= (var-type l) (var-type r)))
+     (α= (body l) (body r)
+         (acons (var l) (var r) renamings)
+         (cons (cons (var l) (car shadowed))
+               (cons (var l) (car shadowed))))))
+
+  (:method ((l term-lambda) (r term-lambda) &optional renamings shadowed)
+    (and 
+     (or (and (not (slot-boundp l 'var-type)) (not (slot-boundp r 'var-type)))
+         (α= (var-type l) (var-type r)))
+     (α= (body l) (body r)
+         (acons (var l) (var r) renamings)
+         (cons (cons (var l) (car shadowed))
+               (cons (var l) (car shadowed))))))
+
+  (:method ((l type-lambda) (r type-lambda) &optional renamings shadowed)
+    (and 
+     (or (and (not (slot-boundp l 'var-kind)) (not (slot-boundp r 'var-kind)))
+         (α= (var-kind l) (var-kind r)))
      (α= (body l) (body r)
          (acons (var l) (var r) renamings)
          (cons (cons (var l) (car shadowed))
@@ -324,11 +393,11 @@
        (always
         (and (eq (var elt-1) (var elt-2))
              ;; todo: shadow variable bindings?
-             (typecase (cons elt-1 elt-2) 
+             (typecase (cons (binder elt-1) (binder elt-2))
                ((cons opal-declaration opal-declaration)
-                (α= (ann elt-1) (ann elt-2) renamings shadowed))
+                (α= (binder elt-1) (binder elt-2) renamings shadowed))
                ((cons opal-definition opal-definition)
-                (α= (val elt-1) (val elt-2) renamings shadowed))))))
+                (α= (binder elt-1) (binder elt-2) renamings shadowed))))))
      (= (length (entries l)) (length (entries r)))))
 
   (:method ((l app) (r app) &optional renamings shadowed)
@@ -377,13 +446,27 @@
 
   (:method ((l signature) (r signature) &optional renamings shadowed)
     (and 
-     (iter (for decl-1 in (declarations l))
-       (for decl-2 in (declarations r))
+     (iter (for entry-1 in (entries l))
+           (for entry-2 in (entries r))
        (always
-        (and (eq (var decl-1) (var decl-2))
-             ;; todo: shadow variable bindings?
-             (α= (ann decl-1) (ann decl-2) renamings shadowed))))
-     (= (length (declarations l)) (length (declarations r)))))
+        (and (eq (var entry-1) (var entry-2))
+             (α= (binder entry-1) (binder entry-2) renamings shadowed))))
+     (= (length (entries l)) (length (entries r)))))
+
+  ;; Equality of defs/decls
+  (:method ((l opal-definition) (r opal-definition)
+            &optional renamings shadowed)
+    (α= (val l) (val r)
+        (acons (var l) (var r) renamings)
+        (cons (cons (var l) (car shadowed))
+              (cons (var r) (cdr shadowed)))))
+
+  (:method ((l opal-declaration) (r opal-declaration)
+            &optional renamings shadowed)
+    (α= (ann l) (ann r)
+        (acons (var l) (var r) renamings)
+        (cons (cons (var l) (car shadowed))
+              (cons (var r) (cdr shadowed)))))
 
 
   ;; Kind Equality
@@ -430,6 +513,10 @@
 
   (:method ((val opal-lambda))
     (format nil "λ ~A. ~A" (var val) (show (body val))))
+  (:method ((val type-lambda))
+    (format nil "tλ ~A. ~A" (var val) (show (body val))))
+  (:method ((val term-lambda))
+    (format nil "mλ ~A. ~A" (var val) (show (body val))))
 
   (:method ((val abstract))
     (format nil "Λ ~A. ~A" (var val) (show (body val))))
@@ -438,23 +525,28 @@
     (let ((stream (make-string-output-stream)))
       (write-string "(σ" stream )
       (iter (for entry in (entries val))
-        (typecase entry
+        (typecase (binder entry)
           (opal-declaration
-           (format stream " (~A : ~A)" (var entry) (show (ann entry))))
+           (format stream " (~A(~A) : ~A)"
+                   (var entry)
+                   (var (binder entry))
+                   (show (ann entry))))
           (opal-definition
-           (format stream " (~A ≜ ~A)" (var entry) (show (val entry))))))
+           (format stream " (~A(~A) ≜ ~A)"
+                   (var entry)
+                   (var (binder entry))
+                   (show (val (binder entry)))))))
       (write-string ")" stream)
       (get-output-stream-string stream)))
 
   (:method ((val projection))
-    (let ((stream (make-string-output-stream)))
-      (flet ((mparen (val)
-               (if (atomic? val)
-                   (show val)
-                   (concatenate 'string "(" (show val) ")"))))
-        (format stream "~A.~A"
-                (mparen (opal-struct val))
-                (field val)))))
+    (flet ((mparen (val)
+             (if (atomic? val)
+                 (show val)
+                 (concatenate 'string "(" (show val) ")"))))
+      (format nil "~A⋅~A"
+              (mparen (opal-struct val))
+              (field val))))
 
 
   ;; For types
@@ -462,7 +554,14 @@
     (format nil "~A" (native-type type)))
 
   (:method ((type arrow))
-    (format nil "~A → ~A" (show (from type)) (show (to type))))
+    (flet ((mparen (pred val)
+             (if (funcall pred val)
+                 (show val)
+                 (concatenate 'string "(" (show val) ")"))))
+      (format nil "~A → ~A"
+              (mparen #'atomic? (from type))
+              (mparen (lambda (v) (or (atomic? v) (typep v 'arrow)))
+                      (to type)))))
 
   (:method ((type forall))
     (format nil "∀ ~A. ~A" (var type) (show (body type))))
@@ -481,13 +580,13 @@
   (:method ((type signature))
     (let ((stream (make-string-output-stream)))
       (write-string "(Σ" stream )
-      (iter (for entry in (declarations type))
+      (iter (for entry in (entries type))
         (format stream " (~A : ~A)" (var entry) (show (ann entry))))
       (write-string ")" stream)
       (get-output-stream-string stream)))
 
   ;; For Kinds
-  (:method ((kind kind-type)) "τ")
+  (:method ((kind kind-type)) "κ")
 
   (:method ((kind kind-arrow))
     (format nil "(~A → ~A)" (show (from kind)) (show (to kind))))

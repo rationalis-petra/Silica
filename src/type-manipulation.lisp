@@ -46,6 +46,7 @@
    :vars (append (env-vars env-1) (env-vars env-2))
    :vals (append (env-vals env-1) (env-vals env-2))))
 
+
 (defgeneric free-vars (type vars)
   (:method ((type var) vars)
     (unless (member (var type) vars) (var type)))
@@ -65,6 +66,7 @@
   (:method ((type forall) vars)
     (free-vars (body type) (cons (var type) vars))))
 
+
 (defgeneric ty-subst (type subt)
   (:method ((type var) subst)
     (or (cdr (assoc (var type) subst))
@@ -80,19 +82,49 @@
     (mk-tapp (ty-subst (left type) subst) (ty-subst (right type) subst)))
 
   (:method ((type forall) subst) 
-    ;; Capture avoiding substiution!
-    ;; (iter (for ))
+    ;; Capture avoiding substitution!
+    (let ((new-var (gensym (string (var type)))))
+      (if (slot-boundp type 'var-kind)
+          (mk-∀
+           new-var
+           (var-kind type)
+           (ty-subst (body type)
+                     (acons (var type) (mk-tvar new-var) subst)))
+          (mk-∀
+           new-var
+           (ty-subst (body type)
+                     (acons (var type) (mk-tvar new-var) subst))))))
 
-    (if (slot-boundp type 'var-kind)
-        (mk-∀
-         (var type)
-         (var-kind type)
-         (ty-subst (body type)
-                   (remove-if (lambda (x) (eq (car x) (var type))) subst)))
-        (mk-∀
-         (var type)
-         (ty-subst (body type)
-                   (remove-if (lambda (x) (eq (car x) (var type))) subst)))))
+  (:method ((type type-lambda) subst) 
+    ;; Capture avoiding substitution!
+    (let ((new-var (gensym (string (var type)))))
+      (if (slot-boundp type 'var-kind)
+          (mk-tλ
+           new-var
+           (var-kind type)
+           (ty-subst (body type)
+                     (acons (var type) (mk-tvar new-var) subst)))
+          (mk-tλ
+           new-var
+           (ty-subst (body type)
+                     (acons (var type) (mk-tvar new-var) subst))))))
+
+  (:method ((type signature) subst) 
+    (mk-sig
+     (iter (for entry in (entries type))
+       ;; Capture avoiding substitution!
+       ;; TODO: this is WRONG!!! (how to fix??)
+       ;;   + possibly two names: one which binds, one for access?
+       (let ((new-var (gensym (string (var (binder entry))))))
+         (collect
+             (make-instance
+              'entry
+              :var (var entry)
+              :binder 
+              (mk-decl
+               new-var
+               (ty-subst (ann (binder entry))
+                         (acons (binder entry) (mk-tvar new-var) subst)))))))))
 
   (:method ((type arrow) subst) 
     (mk-arr
@@ -107,26 +139,37 @@
   (:method ((type forall))
     (mk-∀ (var type) (var-kind type)
           (ty-reduce (body type))))
+  (:method ((type opal-lambda))
+    (mk-tλ (var type) (var-type type)
+          (ty-reduce (body type))))
+  (:method ((type type-lambda))
+    (mk-tλ (var type) (var-kind type)
+          (ty-reduce (body type))))
 
   (:method ((type arrow))
     (mk-arr (ty-reduce (from type))
             (ty-reduce (to type))))
 
+
   (:method ((type app)) (ty-reduce (mk-tapp (left type) (right type))))
   (:method ((type tapp))
     (let ((left-v2 (ty-reduce (left type))))
       (typecase left-v2
-        (forall (ty-subst (body left-v2)
-                          (acons (var left-v2)
-                                 (ty-reduce (right type))
-                                 nil)))
+        ((or type-lambda opal-lambda)
+         (ty-subst (body left-v2)
+                   (acons (var left-v2)
+                          (ty-reduce (right type))
+                          nil)))
         (t (mk-tapp left-v2 (ty-reduce (right type)))))))
 
   (:method ((type signature))
     (mk-sig
-     (mapcar (lambda (decl)
-               (mk-decl (var decl) (ty-reduce (ann decl))))
-             (declarations type))))
+     (mapcar (lambda (entry)
+               (mk-entry
+                (var entry)
+                (mk-decl (var (binder entry))
+                         (ty-reduce (ann (binder entry))))))
+             (entries type))))
 
   (:method ((type type-var)) type)
   (:method ((type var)) type)

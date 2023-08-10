@@ -19,8 +19,9 @@
    :α=
 
    ;; Constructors and values
-   :mk-λ :mk-struct :mk-var :mk-abs :mk-val :mk-app :mk-proj
-   :mk-∀ :mk-sig :mk-arr :mk-native :mk-tapp :mk-tvar :mk-mvar
+   :mk-var :mk-app :mk-λ :mk-arr :mk-entry
+   :mk-mλ :mk-struct :mk-abs :mk-val :mk-proj :mk-mvar
+   :mk-tλ :mk-∀ :mk-sig :mk-native :mk-tapp :mk-tvar
    :mk-kind :mk-karr
    :mk-def :mk-decl
    :kind-type

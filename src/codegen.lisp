@@ -16,6 +16,10 @@
     "Reify a lambda term (λ x.e). These are converted into CL lambdas"
     `(lambda (,(var term))
        ,(reify (body term) env)))
+  (:method ((term term-lambda) env)
+    "Reify a lambda term (λ x.e). These are converted into CL lambdas"
+    `(lambda (,(var term))
+       ,(reify (body term) env)))
 
   (:method ((term abstract) env)
     "Reify a type forall term (Λ α.e). These are erased at runtime, and so are

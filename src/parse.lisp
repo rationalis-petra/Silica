@@ -22,7 +22,7 @@
 (defvar *arrow-sym* (sym "→"))
 
 ;; kinds
-(defvar *kind-sym* (sym "τ"))
+(defvar *kind-sym* (sym "κ"))
 (defvar *kind-t* (mk-kind))
 
 (defun infix? (val)
@@ -61,11 +61,19 @@
 
 
 (defun mk-abstraction (term abstractor)
+  (flet ((abstract-decl? (func decl body)
+           (typecase decl
+             (symbol (funcall func decl body))
+             (list
+              (let ((decl2 (to-def decl)))
+                (assert (typep decl2 'opal-declaration))
+                (funcall func (var decl2) (ann decl2) body))))))
   (match (cadr term)
     ((type symbol) (funcall abstractor (cadr term) (to-ast (caddr term))))
-    ((type list) (reduce (lambda (x y) (funcall abstractor y x))
-                         (cons (to-ast (caddr term))
-                               (reverse (cadr term)))))))
+    ((type list)
+     (reduce (lambda (x y) (abstract-decl? abstractor y x))
+             (cons (to-ast (caddr term))
+                   (reverse (cadr term))))))))
 
 (defun to-ast (term)
   (match term
@@ -83,11 +91,17 @@
        ((eq *cap-lambda-sym* (car term))
         (mk-abstraction term #'mk-abs))
        ((eq *sigma-sym* (car term))
-        (mk-struct (mapcar #'to-def (cdr term))))
+        (mk-struct
+         (mapcar (lambda (def) (make-instance 'entry :var (var def) :binder def))
+                 (mapcar #'to-def (cdr term)))))
        ((eq *cap-sigma-sym* (car term))
-        (mk-sig (mapcar #'to-def (cdr term))))
+        (mk-sig
+         (mapcar (lambda (def) (make-instance 'entry :var (var def) :binder def))
+                 (mapcar #'to-def (cdr term)))))
        ((eq *pi-sym* (car term))
-        (mk-proj (cadr term) (to-ast (caddr term))))
+        (let ((proj (mk-proj (cadr term) (to-ast (caddr term)))))
+          (format t "proj: ~A" proj)
+          proj))
        ((eq *lisp-sym* (car term))
         (mk-lisp (to-ast (elt term 1)) (elt term 3)))
 
