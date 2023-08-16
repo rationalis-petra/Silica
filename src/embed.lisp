@@ -22,7 +22,7 @@
 (defun process-module (name imports exports defs)
   (declare (ignore name imports exports))
   (let* ((infixified (infixify defs))
-         (ast (mapcar (alexandria:compose
+         (ast (li:map (alexandria:compose
                        (lambda (def) (mk-entry (var def) def))
                        #'to-def)
                       infixified))

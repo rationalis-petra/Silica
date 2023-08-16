@@ -9,30 +9,29 @@
                         :native-type 'integer))
 
 (defparameter τ (mk-kind))
-(defparameter κ (mk-kind))
 
 (define-test typing
   (define-test type-check
-    ;; int : κ
+    ;; int : τ
     (is α= int-type
-        (opal:check int-type κ +empty-env+))
+        (opal:check int-type τ +empty-env+))
 
-    ;; int → int : κ
+    ;; int → int : τ
     (is α= (mk-arr int-type int-type)
-        (opal:check (mk-arr int-type int-type) κ +empty-env+))
+        (opal:check (mk-arr int-type int-type) τ +empty-env+))
 
-    ;; (bot) ∀ a. a ◂ κ
+    ;; (bot) ∀ a. a ◂ τ
     (is α= (mk-∀ 'a (mk-tvar 'a))
-        (opal:check (mk-∀ 'a (mk-tvar 'a)) κ +empty-env+))
+        (opal:check (mk-∀ 'a (mk-tvar 'a)) τ +empty-env+))
 
-    ;; (Id) λ α. α ◂ κ → κ
+    ;; (Id) λ α. α ◂ τ → τ
     (is α=
         (mk-tλ 'a τ (mk-tvar 'a))
-        (opal:check (mk-λ 'a (mk-var 'a)) (mk-karr κ κ) +empty-env+))
+        (opal:check (mk-λ 'a (mk-var 'a)) (mk-karr τ τ) +empty-env+))
 
-    ;; (List) λ A. ∀ β (β → (A → β → β) → β) ◂ κ → κ
+    ;; (List) λ A. ∀ β (β → (A → β → β) → β) ◂ τ → τ
     (is α=
-        (mk-tλ 'A κ (mk-∀ 'β κ (mk-arr (mk-tvar 'β)
+        (mk-tλ 'A τ (mk-∀ 'β τ (mk-arr (mk-tvar 'β)
                                        (mk-arr (mk-arr (mk-tvar 'A)
                                                        (mk-arr (mk-tvar 'β)
                                                                (mk-tvar 'β)))
@@ -44,7 +43,7 @@
                                                         (mk-arr (mk-var 'β)
                                                                 (mk-var 'β)))
                                                 (mk-var 'β)))))
-                    (mk-karr κ κ)
+                    (mk-karr τ τ)
                     +empty-env+))
 
     ;; w : int

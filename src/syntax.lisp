@@ -56,6 +56,12 @@
     :reader var
     :initarg :var)))
 
+(defclass label (term)
+  ((name
+    :reader name
+    :initarg :name))
+  (:documentation "A label is like a symbol, but it refers to a value in an
+  imported module, allowing for modules to be renamed"))
 ;; (defclass term-app (term opal-type)
 ;;   ((left
 ;;     :type term

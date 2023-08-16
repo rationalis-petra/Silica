@@ -4,9 +4,6 @@
                         'opal::native-type
                         :native-type 'integer))
 
-(defun entries (&rest terms)
-  (mapcar (lambda (term) (mk-entry (var term) term)) terms))
-
 (define-test equality
   (define-test type-alpha-equality
     (is α= (mk-kind) (mk-kind))

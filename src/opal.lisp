@@ -1,5 +1,5 @@
 (defpackage opal
-  (:use :cl :trivia :iter)
+  (:use :cl :trivia :iter :lang-extensions)
   (:export
    ;; get opal values from CL
    :run-main
@@ -16,7 +16,7 @@
    :reify ;; compile
 
    ;; comparisons
-   :α=
+   :α= ;:β=
 
    ;; Constructors and values
    :mk-var :mk-app :mk-λ :mk-arr :mk-entry

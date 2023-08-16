@@ -202,6 +202,11 @@
 
 (declaim (ftype (function (t t) (or (cons term opal-type) (cons opal-type kind))) infer))
 (defgeneric infer (term env)
+
+  (:method ((term lisp-form) env)
+    (cons (ty-eval (form-type term) env)
+        term))
+
   (:method ((term opal-literal) env)
     (cons 
      (mk-native

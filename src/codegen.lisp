@@ -2,14 +2,9 @@
 
 (defvar *opal-modules* (make-hash-table))
 
-
-;; ;; bidirectional typechecking
-
-;; (defgeneric check (term type context))
-;; (defgeneric infer (term context))
-
-;; ;; evaluation via β-reduction
 (defgeneric reify (term environment)
+  (:documentation "Take a term and convert it into a piece of lisp code with the
+  appropriate semantics.")
   (:method ((term lisp-form) env)
     (form term))
   (:method ((term opal-lambda) env)

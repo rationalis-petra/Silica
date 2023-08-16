@@ -5,8 +5,16 @@
 (CL:IN-PACKAGE :OPAL-USER) 
 
 (module main
+  (import integer)
+  ;; unit type
+  (Unit ◂ τ)
+  (Unit ≜ ∀ α (α → α))
+
+  (unit ◂ Unit)
+  (unit ≜ Λ α (λ x x))
+  
   ;; number type
-  (ℕ ◂ κ)
+  (ℕ ◂ τ)
   (ℕ ≜ ∀ α (α → (α → α) → α))
 
   (zero ◂ ℕ)
@@ -15,8 +23,18 @@
   (succ ◂ ℕ → ℕ)
   (succ n ≜ Λ α (λ (base next) (next (n α base next))))
 
+  ;; Bool Type
+  (Bool ◂ τ)
+  (Bool ≜ ∀ α (α → α → α))
+
+  (true ◂ Bool)
+  (true ≜ Λ α (λ (x y) x))
+
+  (false ◂ Bool)
+  (false ≜ Λ α (λ (x y) y))
+
   ;; List type
-  (List ◂ κ → κ)
+  (List ◂ τ → τ)
   (List ≜ λ A (∀ β (β → (A → β → β) → β)))
 
   (nil ◂ ∀ α (List α))
@@ -32,15 +50,21 @@
                              (λ ((val ◂ α) (rest ◂ List β))
                                 (cons β (f val) rest)))))
 
-  ;; (Monad ◂ (κ → κ) → κ) 
-  ;; (Monad M ≜
-  ;;   Σ (pure ◂ ∀ α (α → M α))
-  ;;     (bind ◂ ∀ (α β) ((α → β) → M α → M β)))
+  (∃ ◂ (τ → τ) → τ)
+  (∃ F ≜ Σ (A ◂ τ) (v ◂ F A))
 
-  ;; (pure ◂ ∀ ((M ◂ κ → κ) α) (Monad M → α → M α))
+  ;(Monad ◂ ∃ Monad)
+
+  (Monad ◂ τ) 
+  (Monad ≜ Σ
+    (M ◂ τ → τ)
+    (pure ◂ ∀ α (α → M α))
+    (bind ◂ ∀ (α β) ((α → β) → M α → M β)))
+
+  ;; (pure ◂ ∀ ((M ◂ τ → τ) α) (Monad M → α → M α))
   ;; (pure ≜ Λ (M α) (λ (monad val) ((π pure monad) val)))
 
-  ((*) ◂ κ → κ → κ)
+  ((*) ◂ τ → τ → τ)
   ((*) ≜ λ (α β) (Σ (fst ◂ α) (snd ◂ β)))
 
   (fst ◂ ∀ (α β) ((α * β) → α))
@@ -51,7 +75,7 @@
 
   ;; Lisp Bridge
   
-  (ClList ◂ κ)
+  (ClList ◂ τ)
   (ClList ≜ native CL:INTEGER)
 
   (to-clist ◂ ∀ α (List α → ClList))
@@ -61,17 +85,17 @@
                                                       (CL:LAMBDA (y)
                                                         (CL:CONS x y)))))))
 
-  (ℤ ◂ κ)
+  (ℤ ◂ τ)
   (ℤ ≜ native CL:INTEGER)
-
-  ;; TODO: fix the typechecker so I work!
-  ;; (pr ◂ ℤ * ℤ)
-  ;; (pr ≜ σ (x ≜ to-int zero) (y ≜ to-int (succ zero)))
 
   (to-int ◂ ℕ → ℤ)
   (to-int n ≜ (lisp ℤ (n) (OPAL/UTIL:APP-CURRY n 0 (CL:LAMBDA (x) (CL:+ x 1)))))
 
+  (clBool ◂ τ)
+  (clBool ≜ native CL:BOOLEAN)
 
+  (to-bool ◂ Bool → clBool)
+  (to-bool b ≜ b clBool (lisp clBool () (CL:T)) (lisp clBool () (CL:NIL)))
 
   ;; Experimentation
 
@@ -81,8 +105,17 @@
   (two ≜ succ (succ zero))
 
   ;; TODO: map (to-int) (cons ℤ one (cons ℤ two (nil ℤ )))
-  (list-val ≜ to-clist ℤ (map ℕ ℤ to-int (cons ℕ one (cons ℕ two (nil ℕ)))))
-  )
+  (my-list ≜ (cons ℕ one (cons ℕ two (nil ℕ))))
+
+  (out ≜ to-clist ℤ (map ℕ ℤ to-int my-list))
+
+
+  ;; 
+  (IO ◂ τ → τ)
+  (IO ≜ λ A. unit → A)
+
+  
+)
 
 
 (NAMED-READTABLES:IN-READTABLE ()) 

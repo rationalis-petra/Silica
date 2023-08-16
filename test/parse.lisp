@@ -32,7 +32,7 @@
         (to-ast '(sym::|∀| x x)))
 
     (is α=
-        (mk-sig (list
+        (mk-sig (entries
                  (mk-decl 'x (mk-var 'a))
                  (mk-decl 'y (mk-var 'b))))
         (to-ast '(sym::|Σ| (sym::◂ x a) (sym::◂ y b)))))

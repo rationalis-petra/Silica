@@ -22,14 +22,14 @@
 (defvar *arrow-sym* (sym "→"))
 
 ;; kinds
-(defvar *kind-sym* (sym "κ"))
+(defvar *kind-sym* (sym "τ"))
 (defvar *kind-t* (mk-kind))
 
 (defun infix? (val)
   (flet ((special-p (char)
            (and 
             (member (cl-unicode:general-category char)
-                    (list "Pc" "Pd" "Ps" "Pe" "Pi" "Pf" "Po" "Sm" "Rc" "Sk" "So")
+                    (list "pc" "pd" "ps" "pe" "pi" "pf" "po" "sm" "rc" "sk" "so")
                     :test #'equal)
             (not (eq char #\∀))
             (not (eq char #\∃)))))

@@ -15,14 +15,34 @@
                :named-readtables)
   :pathname "src"
   :components
-  ((:file "embed" :depends-on ("parse" "codegen"))
-
+  ((:file "embed" :depends-on ("parse" "codegen" "typecheck"))
    (:file "codegen" :depends-on ("syntax"))
-   (:file "parse" :depends-on ("syntax"))
-   (:file "typecheck" :depends-on ("type-manipulation"))
-   (:file "type-manipulation" :depends-on ("syntax"))
+   (:module "parse"
+    :pathname "parse"
+    :depends-on ("syntax")
+    :components
+    ((:file "parse")))
+   (:module "typecheck"
+    :pathname "typecheck"
+    :depends-on ("syntax")
+    :components
+    ((:file "typecheck" :depends-on ("type-manipulation"))
+     (:file "type-manipulation")))
    (:file "syntax" :depends-on ("opal"))
-   (:file "opal")))
+   (:file "opal" :depends-on ("containers" "lang"))
+
+   (:module "lang"
+    :pathname "utils"
+    :components
+    ((:file "language")))
+
+   (:module "containers"
+    :pathname "utils/containers"
+    :components
+     ((:file "array")
+      (:file "hash-table")
+      (:file "alist")
+      (:file "list")))))
 
 (defsystem :opal.tests
   :name "opal tests"
