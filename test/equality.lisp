@@ -5,6 +5,8 @@
                         :native-type 'integer))
 
 (define-test equality
+  :parent all
+
   (define-test type-alpha-equality
     (is α= (mk-kind) (mk-kind))
 

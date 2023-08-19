@@ -1,15 +1,19 @@
 (in-package :opal)
 
-(defstruct env vars vals)
+(defstruct env base vars vals)
 
 ;; Bind var to ty in env.
 (declaim (ftype (function (symbol (or opal-type kind) env) env) bind))
 (defun bind (var ty env)
   (make-env
+   :base (env-base env)
    :vars (acons var ty (env-vars env))
    :vals (acons var nil (env-vals env))))
 
-(defparameter +empty-env+ (make-env :vars nil :vals nil))
+(defparameter +empty-env+ (make-env :base (ht:empty) :vars nil :vals nil))
+
+(defun make-env-from (base)
+  (make-env :base base :vars nil :vals nil))
 
 ;; Bind var to val in env.
 ;; Mostly for, e.g. looking up types in the environment. 
@@ -24,6 +28,7 @@
                (nil (error "Tried to insert val for non-bound var ~A" var)))))
     ;; iterate down the value env until we find a key
     (make-env
+     :base (env-base env)
      :vars (env-vars env)
      :vals (build-vals var val (env-vals env)))))
 

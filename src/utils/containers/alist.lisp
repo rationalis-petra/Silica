@@ -11,7 +11,7 @@
    ;; macros
    :setf
    ;; top-level defs/forms
-   :declaim :defun :in-package
+   :declaim :defun :defmacro :in-package
    ;; special forms
    :declare :ignore
    :lambda :if :let :multiple-value-bind :return
@@ -20,7 +20,8 @@
   (:nicknames :al)
   (:export
    :empty :lookup :map :each :insert
-   :<>))
+   :<>
+   :make))
 (in-package :containers/alist)
 
 
@@ -40,3 +41,8 @@
   (iter (for x in list) (funcall func (cdr x))))
 
 (defun <> (&rest args) (apply #'append args))
+
+(defmacro make (&rest entries)
+  `(list
+   ,@(iter (for entry in entries)
+       (collect `(cons ,(car entry) ,(cdr entry))))))

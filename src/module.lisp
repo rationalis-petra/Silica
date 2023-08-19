@@ -5,7 +5,7 @@
 ;; Module/Package system
 ;; Inspired by Ocaml
 
-;; (λ x y. p﹨q)
+(defvar *packages* (ht:empty))
 
 (defclass opal-package ()
   ((name
@@ -14,20 +14,27 @@
     :initarg :name)
    (modules
     :type hash-table
-    :reader modules)
+    :reader modules
+    :initarg :modules
+    :initform (ht:empty))
    (exported-modules
     :type list
-    :reader exported-modules)
+    :reader exported-modules
+    :initarg :exported-modules
+    :initform nil)
    (dependenceis
     :type list
-    :reader dependencies))
-  (:documentation "The Package class represents a d "))
+    :reader dependencies
+    :initarg :dependencies
+    :initform nil))
+  (:documentation "The Package class represents a d"))
 
 
 (defclass module ()
   ((parent
     :reader parent
-    :initarg :parent)
+    :initarg :parent
+    :initform nil)
    (name
     :type string
     :reader name
@@ -35,7 +42,8 @@
    (source
     :type string
     :reader source
-    :initarg :source)
+    :initarg :source
+    :initform :unknown)
    (dependencies
     :type list
     :reader dependencies
@@ -51,11 +59,13 @@
    (submodules
     :type list
     :reader submodules
-    :initarg :submodules)
+    :initarg :submodules
+    :initform nil)
    (exports
     :type list
     :reader exports
-    :initarg :exports))
+    :initarg :exports
+    :initform (ht:empty)))
   (:documentation "The Module class represents a discrete unit of code within
 the opal programming Language. At the language-level, modules look identical
 to structures.
@@ -65,9 +75,8 @@ modular recompilation. "))
 
 
 ;; All packages currently loaded
-(defvar *packages* (make-hash-table :test #'equal))
 
-(declaim (ftype (function (string) opal-package) get-package))
+(declaim (ftype (function (t) opal-package) get-package))
 (defun get-package (name)
   (gethash name *packages*))
 
@@ -90,19 +99,20 @@ in all it's modules."
      (get-exports (get-package pkg-name))
      by (lambda (t1 t2)
           (ht:merge t1 t2
-                    :by (alexandria:curry #'list :merge-conflict))))))
+                    :by (alexandria:curry #'list :ambiguous-name)))
+     :initial-value (ht:empty))))
 
 (defun build-module (package module-raw)
   (labels
       ((parse-module (module-raw)
          (al:insert
           :ast
-          (iter (for entry in (lookup :sexpr module-raw))
+          (iter (for entry in (al:lookup :body module-raw))
             (collect 
                 (-> entry (infixify) (to-def))))
           module-raw))
 
-       (check-module (module-ast env)
+       (type-module (module-ast env)
          (let ((result
                  (infer
                   (mk-struct
@@ -130,11 +140,27 @@ in all it's modules."
       ;; now, start program generation 
       (-> module-raw
           (parse-module)
-          (check-module env)
+          (type-module env)
           (reify-module env)))))
 
 
-(defun gen-env (available-modules module-raw))
+(defun gen-env (available-modules module-raw)
+  (let ((imports (al:lookup :import-list module-raw)))
+    ;; for now, assume imports are a list of symbols which designate packages
+    (iter (for name in imports)
+
+      (when (not (gethash name available-modules))
+        (error (format nil "Couldn't find module of name ~A" name)))
+      (accumulate 
+       (gethash name available-modules)
+       by
+       (lambda (env1 env2)
+         (ht:merge
+          env1 env2
+          :by (alexandria:curry #'list :ambiguous-name)))
+       into base)
+
+      (finally (return (make-env-from base))))))
 ;; (defun resolve-import (import-qualifier))
 
 

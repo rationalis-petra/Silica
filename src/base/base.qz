@@ -1,0 +1,20 @@
+(quartz version 1.0)
+
+
+(package base)
+
+
+⍝ A module for export
+(module
+ (name numerics)
+ (public-name num))
+
+
+(module
+ (name data)
+ (public-name data))
+
+
+(module
+ (name abstractions)
+ (public-name abs))

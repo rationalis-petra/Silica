@@ -10,18 +10,19 @@
                :alexandria
                :iterate
                :trivia
-               :esrap
                :cl-unicode
                :named-readtables)
   :pathname "src"
   :components
-  ((:file "embed" :depends-on ("parse" "codegen" "typecheck"))
+  ((:file "embed" :depends-on ("module"))
+   (:file "module" :depends-on ("parse" "codegen" "typecheck"))
    (:file "codegen" :depends-on ("syntax"))
    (:module "parse"
     :pathname "parse"
     :depends-on ("syntax")
     :components
-    ((:file "parse")))
+     ((:file "parse")
+      (:file "reader")))
    (:module "typecheck"
     :pathname "typecheck"
     :depends-on ("syntax")
@@ -44,12 +45,3 @@
       (:file "alist")
       (:file "list")))))
 
-(defsystem :opal.tests
-  :name "opal tests"
-  :depends-on (:opal :parachute)
-  :pathname "test"
-  :components
-  ((:file "typecheck" :depends-on ("opal-tests"))
-   (:file "equality" :depends-on ("opal-tests"))
-   (:file "parse" :depends-on ("opal-tests"))
-   (:file "opal-tests")))

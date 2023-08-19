@@ -25,16 +25,18 @@
 (defvar *kind-sym* (sym "τ"))
 (defvar *kind-t* (mk-kind))
 
+(defun special? (char)
+  (and 
+   (member (cl-unicode:general-category char)
+           (list "Pc" "Pd" "Ps" "Pe" "Pi" "Pf" "Po"
+                 "Sm" "Rc" "Sk" "So")
+           :test #'equal)
+   (not (eq char #\∀))
+   (not (eq char #\∃))))
+
 (defun infix? (val)
-  (flet ((special-p (char)
-           (and 
-            (member (cl-unicode:general-category char)
-                    (list "pc" "pd" "ps" "pe" "pi" "pf" "po" "sm" "rc" "sk" "so")
-                    :test #'equal)
-            (not (eq char #\∀))
-            (not (eq char #\∃)))))
-    (when (typep val 'symbol)
-      (every #'special-p (string val)))))
+  (when (typep val 'symbol)
+    (every #'special? (string val))))
 
 
 (defun to-def (definition)

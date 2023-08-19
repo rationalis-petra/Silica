@@ -6,11 +6,11 @@
    :ftype :function :null
    ;; functions
    :make-hash-table :hash-table :equal
-   :gethash :funcall
+   :gethash :funcall :list :car :cdr :cons
    ;; macros
    :setf
    ;; top-level defs/forms
-   :declaim :defun
+   :declaim :defun :defmacro
    ;; special forms
    :declare :ignore
    :lambda :if :let :multiple-value-bind :return
@@ -21,7 +21,9 @@
    :empty
    :map
    :each
-   :merge))
+   :merge
+   :from-alist
+   :make))
 
 (cl:in-package :containers/hash-table)
 
@@ -62,3 +64,18 @@
   (iter
     (for (key val) in-hashtable table)
     (funcall func val)))
+
+
+(defun from-alist (alist)
+  (iter (for (key . val) in alist)
+    (with table = (empty))
+
+    (setf (gethash key table) val)
+
+    (finally (return table))))
+
+(defmacro make (&rest entries)
+  `(from-alist
+    (list
+     ,@(iter (for entry in entries)
+         (collect `(cons ,(car entry) ,(cdr entry)))))))

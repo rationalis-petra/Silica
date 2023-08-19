@@ -11,6 +11,9 @@
 (defparameter τ (mk-kind))
 
 (define-test typing
+  :parent all
+  :depends-on (equality)
+
   (define-test type-check
     ;; int : τ
     (is α= int-type

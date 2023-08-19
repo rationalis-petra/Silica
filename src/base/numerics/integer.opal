@@ -6,14 +6,14 @@
 (ℤ ≜ (native CL:INTEGER))
 
 ((+) ◂ ℤ → ℤ → ℤ)
-(x + y ≜ (lisp ℤ (x y) (Cl:+ x y)))
+((x + y) ≜ (lisp ℤ (x y) ⟦(cl:+ sym::|x| sym::|y|)⟧))
 
 ((-) ◂ ℤ → ℤ → ℤ)
-(x - y ≜ (lisp ℤ (x y) (Cl:- x y)))
+((x - y) ≜ (lisp ℤ (x y) ⟦(cl:- sym::|x| sym::|y|)⟧))
 
 ((×) ◂ ℤ → ℤ → ℤ)
-(x × y ≜ (lisp ℤ (x y) (Cl:* x y)))
+((x × y) ≜ (lisp ℤ (x y) ⟦(cl:* sym::|x| sym::|y|)⟧))
 
 ((÷) ◂ ℤ → ℤ → ℤ)
-(x ÷ y ≜ (lisp ℤ (x y) (Cl:FLOOR x y)))
+((x ÷ y) ≜ (lisp ℤ (x y) ⟦(cl:floor sym::|x| sym::|y|)⟧))
 
