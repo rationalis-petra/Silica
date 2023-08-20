@@ -358,7 +358,16 @@
           (opal-declaration
            (setf prev-decl entry)
            (setf locals (bind (var binder) (ty-eval (ann binder) (join locals env)) locals))))
-        (finally (return (cons (mk-sig out-decls) (mk-struct out-entries)))))))
+        (finally (return
+                   (cons
+                    (mk-sig (li:map
+                             (lambda (x)
+                               (mk-entry (var x) x))
+                             out-decls))
+                    (mk-struct (li:map
+                                (lambda (x)
+                                  (mk-entry (var x) x))
+                                out-entries))))))))
 
   (:method ((term projection) env)
     (let* ((struct-result (infer (opal-struct term) env))

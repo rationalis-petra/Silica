@@ -40,7 +40,7 @@
     :reader name
     :initarg :name)
    (source
-    :type string
+    :type (or string (eql :unknown))
     :reader source
     :initarg :source
     :initform :unknown)
@@ -48,14 +48,22 @@
     :type list
     :reader dependencies
     :initarg :dependencies)
+   (signature
+    :type t
+    :reader signature
+    :initarg :signature)
    (internal-struct
-    :type list 
+    ;:type list 
     :reader internal-struct
     :initarg :internal-struct)
+   (lisp-val
+    :type t
+    :reader lisp-val
+    :initarg :lisp-val)
    (module-package
     :type package
     :reader module-package
-    :initarg :package)
+    :initarg :module-package)
    (submodules
     :type list
     :reader submodules
@@ -65,7 +73,7 @@
     :type list
     :reader exports
     :initarg :exports
-    :initform (ht:empty)))
+    :initform nil))
   (:documentation "The Module class represents a discrete unit of code within
 the opal programming Language. At the language-level, modules look identical
 to structures.
@@ -75,6 +83,7 @@ modular recompilation. "))
 
 
 ;; All packages currently loaded
+;; Functions to manipulate packages and modules
 
 (declaim (ftype (function (t) opal-package) get-package))
 (defun get-package (name)
@@ -86,7 +95,7 @@ modular recompilation. "))
   (iter (for name in (exported-modules package))
     (with exports = (ht:empty))
     (setf (gethash name exports)
-          (lookup name (modules package)))
+          (ht:lookup name (modules package)))
 
     (finally (return exports))))
 
@@ -102,6 +111,9 @@ in all it's modules."
                     :by (alexandria:curry #'list :ambiguous-name)))
      :initial-value (ht:empty))))
 
+
+
+;; Functions to get information from 'raw' (read) syntax trees.
 (defun build-module (package module-raw)
   (labels
       ((parse-module (module-raw)
@@ -120,12 +132,15 @@ in all it's modules."
                              (mk-entry (var def) def))
                            (al:lookup :ast module-ast)))
                   env)))
-           (-> module-ast
+           (->> module-ast
             (al:insert :type (car result))
             (al:insert :typed-ast (cdr result)))))
 
        (reify-module (module env)
-           (reify (lookup :typed-ast module) env)))
+         (al:insert 
+          :code
+          (reify (al:lookup :typed-ast module) env)
+    s      module)))
 
     (let* (;; TODO: also account for modules at the level of the package!
            (modules (get-available-modules package))
@@ -137,13 +152,12 @@ in all it's modules."
            ;; TODO add parser fixity generation
            )
 
-      ;; now, start program generation 
       (-> module-raw
           (parse-module)
           (type-module env)
           (reify-module env)))))
 
-
+(declaim (ftype (function (hash-table list) env) gen-env))
 (defun gen-env (available-modules module-raw)
   (let ((imports (al:lookup :import-list module-raw)))
     ;; for now, assume imports are a list of symbols which designate packages
@@ -151,21 +165,35 @@ in all it's modules."
 
       (when (not (gethash name available-modules))
         (error (format nil "Couldn't find module of name ~A" name)))
+      
       (accumulate 
-       (gethash name available-modules)
+       (module-export-types (gethash name available-modules))
        by
-       (lambda (env1 env2)
-         (ht:merge
-          env1 env2
-          :by (alexandria:curry #'list :ambiguous-name)))
-       into base)
+       (lambda (table-1 table-2)
+         (format t "table-1: ~A~%table-2: ~A~%" table-1 table-2)
+         (if table-2
+             (ht:merge
+              table-1 table-2
+              :by (alexandria:curry #'list :ambiguous-name))
+             table-1))
+       into imported-modules)
 
-      (finally (return (make-env-from base))))))
-;; (defun resolve-import (import-qualifier))
+      (finally (return (make-env-from imported-modules))))))
 
 
-;; (defun generate-env (import-qualifiers module)
-;;   "Generate a typechecking environment from a module"
-;;   t)
+(defun module-export-types (module) ;; TODO: add filter as an argument
+  ;; get exports from a module as a list of symbols
+
+  (iter (for symbol in (exports module))
+    (with out = (ht:empty))
+
+    (let ((tipe (get-field (signature module) symbol)))
+      (typecase tipe
+        (kind (setf (gethash symbol out)
+                    (cons tipe (get-field (internal-struct module) symbol))))
+        (t (setf (gethash symbol out) tipe))))
+
+    (finally (return out))))
+
 
 

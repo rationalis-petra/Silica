@@ -536,7 +536,7 @@
            (format stream " (~A(~A) : ~A)"
                    (var entry)
                    (var (binder entry))
-                   (show (ann entry))))
+                   (show (ann (binder entry)))))
           (opal-definition
            (format stream " (~A(~A) ≜ ~A)"
                    (var entry)
@@ -587,7 +587,10 @@
     (let ((stream (make-string-output-stream)))
       (write-string "(Σ" stream )
       (iter (for entry in (entries type))
-        (format stream " (~A : ~A)" (var entry) (show (ann entry))))
+        (format stream " (~A(~A) : ~A)"
+                (var entry)
+                (var (binder entry))
+                (show (ann (binder entry)))))
       (write-string ")" stream)
       (get-output-stream-string stream)))
 

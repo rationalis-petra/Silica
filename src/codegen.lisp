@@ -61,7 +61,8 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
                   (collect `(setf (gethash (quote ,var) hashmap) ,var)))
               hashmap)))
       `(let*
-           (,@(mk-binds (entries term)))
+           ;; TODO: sort out differing variable names within/without?
+           (,@(mk-binds (li:map #'binder (entries term))))
          ,(mk-hashmap (get-vars (entries term))))))
 
   (:method ((term projection) env)

@@ -1,41 +1,42 @@
 (in-package :opal)
 
 
-;; laod the base library
+(defun base-path (path)
+  (asdf:system-relative-pathname
+   :opal
+   (concatenate 'string "src/base/" path ".opal")))
 
+;; laod the base library
+(defun load-base-module (name path package)
+  (with-open-file (file (base-path path))
+    (let* ((module-raw (parse-file file))
+           (build-output (build-module package module-raw)))
+      ;; (format t "build-output: ~%~A~%" build-output)
+      (setf (gethash name (modules package))
+            (make-instance
+             'module
+             :name name
+             :source path
+             ;; TODO: make this a function!
+             :dependencies (al:lookup :import-list module-raw)
+             :signature (al:lookup :type build-output) 
+             :internal-struct (al:lookup :typed-ast build-output)
+             :lisp-val (eval (al:lookup :code build-output))
+             :module-package package
+             :exports (al:lookup :export-list build-output))))))
 
 (defun load-base ()
   "A hacky solution (while quartz is under development) for loading in the base
 package for use in other projects/packages."
   (let ((base (make-instance
                'opal-package
-               :name "base"
-               :exported-modules (list "int"))))
-    (load-base-module "int" "numerics/integer" base)
+               :name (sym "base")
+               :exported-modules (list (sym "int")))))
+    (load-base-module (sym "int") "numerics/integer" base)
 
-    (setf (gethash "base" *packages*) base)))
-
-(defun base-path (path)
-  (asdf:system-relative-pathname
-   :opal
-   (concatenate 'string "src/base/" path ".opal")))
-
-(defun load-base-module (name path package)
-  (with-open-file (file (base-path path))
-    (let* ((module-raw (parse-file file))
-           (module-struct (build-module package module-raw)))
-      (setf (gethash name (modules package))
-            (make-instance
-             'module
-             :name name
-             :source path
-             :dependencies () ; (get-dependencies module-raw)
-             :internal-struct module-struct
-             :module-package package
-             :exports (get-exports module-raw))))))
+    (setf (gethash (sym "base") *packages*) base)))
 
 
-(defun test-load ()
-  (with-open-file (file (base-path "numerics/integer"))
-    (let* ((module-raw (parse-file file)))
-      module-raw)))
+
+
+

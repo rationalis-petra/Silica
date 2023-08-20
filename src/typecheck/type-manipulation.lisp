@@ -2,6 +2,18 @@
 
 (defstruct env base vars vals)
 
+(defun lookup-base (var table)
+  (let ((res (ht:lookup var table)))
+    (typecase res
+      (cons (car res))
+      (t res))))
+
+(defun lookup-base-val (var table)
+  (let ((res (ht:lookup var table)))
+    (typecase res
+      (cons (cdr res))
+      (t res))))
+
 ;; Bind var to ty in env.
 (declaim (ftype (function (symbol (or opal-type kind) env) env) bind))
 (defun bind (var ty env)
@@ -34,20 +46,24 @@
 
 (defun bind-2 (var ty val env)
   (make-env
+   :base (env-base env)
    :vars (acons var ty (env-vars env))
    :vals (acons var val (env-vals env))))
 
 (declaim (ftype (function (symbol env) (or null opal-type kind)) lookup))
 (defun lookup (var env)
-  (or (cdr (assoc var (env-vars env)))
+  (or (al:lookup var (env-vars env))
+      (lookup-base var (env-base env))
       (error (format nil "Can't find variable ~A in environment" var))))
 
 (defun lookup-val (var env)
-  (or (cdr (assoc var (env-vals env)))
+  (or (al:lookup var (env-vals env))
+      (lookup-base-val var (env-base env))
       (error (format nil "Can't find value of type ~A in environment" var))))
 
 (defun join (env-1 env-2)
   (make-env
+   :base (ht:merge (env-base env-1) (env-base env-2) :by (lambda (x y) y))
    :vars (append (env-vars env-1) (env-vars env-2))
    :vals (append (env-vals env-1) (env-vals env-2))))
 
@@ -74,10 +90,10 @@
 
 (defgeneric ty-subst (type subt)
   (:method ((type var) subst)
-    (or (cdr (assoc (var type) subst))
+    (or (al:lookup (var type) subst)
         (mk-tvar (var type))))
   (:method ((type type-var) subst)
-    (or (cdr (assoc (var type) subst))
+    (or (al:lookup (var type) subst)
         type))
 
   (:method ((type tapp) subst)
@@ -182,8 +198,12 @@
   (:method ((kind kind)) kind))
 
 (defun ty-eval (type env)
-  (let* ((vals (iter (for entry in (env-vals env))
-                (when (cdr entry) (collect entry))))
+  (let* ((vals
+           (li:<>
+            (iter (for entry in (env-vals env))
+              (when (cdr entry) (collect entry)))
+            (iter (for (key val) in-hashtable (env-base env))
+              (when (consp val) (collect (cons key (cdr val)))))))
          (val (ty-reduce (ty-subst type vals))))
     val))
 

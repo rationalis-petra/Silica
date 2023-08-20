@@ -18,6 +18,7 @@
   (:use :iterate)
   (:nicknames :ht)
   (:export
+   :lookup
    :empty
    :map
    :each
@@ -30,6 +31,9 @@
 (declaim (ftype (function () hash-table) empty))
 (defun empty () (make-hash-table :test #'equal))
 
+
+(defun lookup (key table)
+  (gethash key table))
 
 ;; (declaim (ftype (function
 ;;                  (hash-table hash-table &optional &key (merge-func t))

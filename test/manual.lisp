@@ -5,7 +5,6 @@
 (CL:IN-PACKAGE :OPAL-USER) 
 
 (module main
-  (import integer)
   ;; unit type
   (Unit ◂ τ)
   (Unit ≜ ∀ α (α → α))
