@@ -122,10 +122,10 @@
        (t
         (reduce #'mk-app (mapcar #'to-ast term)))))
 
-    ((type integer) (mk-val term))
+    ((type number) (mk-val term))
     ((type string)  (mk-val term))
     ;; Possibly remove above??
-    (_ (format t "failed to match:~A~%" term))))
+    (_ (error (format nil "failed to match:~A" term)))))
 
 
 (defun infixify (term)

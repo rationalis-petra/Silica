@@ -92,7 +92,7 @@
       (mk-struct
        (iter (for entry in (entries term))
              (for binder = (binder entry))
-             (with decls = (declarations type))
+             (with decls = (entries type))
          ;; locals = local declarations
          (with locals = +empty-env+)
          (with prev-decl = nil)
@@ -156,7 +156,11 @@
       (typecase lt
         (arrow
          (unless (and (α-r= (from lt) rt env) (α-r= (to lt) type env))
-           (error "Bad application of function")))
+           (error (format nil "Bad application of function: ~A to ~A.
+ Type mismatch: ~A and ~A"
+                          (left term)
+                          (right term)
+                          lt rt))))
         (kind-arrow
          (unless (and (α= (from lt) rt) (α= (to lt) type))
            (error "Bad application of type constructor")))
@@ -212,9 +216,7 @@
      (mk-native
       ;; TODO: formalize somewhere the default inference/correspondence
       ;; lisp type ↔ opal type
-      (typecase (val term)
-        (integer 'integer)
-        (t (type-of (val term)))))
+      (type-of (val term)))
      term))
 
   (:method ((term var) env)

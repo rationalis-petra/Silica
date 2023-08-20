@@ -11,7 +11,6 @@
   (with-open-file (file (base-path path))
     (let* ((module-raw (parse-file file))
            (build-output (build-module package module-raw)))
-      ;; (format t "build-output: ~%~A~%" build-output)
       (setf (gethash name (modules package))
             (make-instance
              'module
@@ -31,8 +30,13 @@ package for use in other projects/packages."
   (let ((base (make-instance
                'opal-package
                :name (sym "base")
-               :exported-modules (list (sym "int")))))
-    (load-base-module (sym "int") "numerics/integer" base)
+               :exported-modules
+               (list
+                (sym "int")
+                (sym "float")))))
+    ;; TODO: add a num module
+    (load-base-module (sym "int") "numerics/int" base)
+    (load-base-module (sym "float") "numerics/float" base)
 
     (setf (gethash (sym "base") *packages*) base)))
 

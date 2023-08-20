@@ -1,4 +1,4 @@
-(module integer
+(module int
  (export ℤ + - × ÷))
 
 (ℤ ◂ τ)

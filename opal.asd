@@ -16,30 +16,35 @@
   :components
   ((:file "embed" :depends-on ("module"))
    (:file "module" :depends-on ("parse" "codegen" "typecheck"))
-   (:file "codegen" :depends-on ("syntax"))
+   (:module "codegen"
+     :pathname "codegen"
+     :depends-on ("syntax")
+     :components
+     ((:file "codegen" :depends-on ("context"))
+      (:file "context")))
    (:module "parse"
-    :pathname "parse"
-    :depends-on ("syntax")
-    :components
+     :pathname "parse"
+     :depends-on ("syntax")
+     :components
      ((:file "parse")
       (:file "reader")))
    (:module "typecheck"
-    :pathname "typecheck"
-    :depends-on ("syntax")
-    :components
-    ((:file "typecheck" :depends-on ("type-manipulation"))
-     (:file "type-manipulation")))
+     :pathname "typecheck"
+     :depends-on ("syntax")
+     :components
+     ((:file "typecheck" :depends-on ("type-manipulation"))
+      (:file "type-manipulation")))
    (:file "syntax" :depends-on ("opal"))
    (:file "opal" :depends-on ("containers" "lang"))
 
    (:module "lang"
-    :pathname "utils"
-    :components
-    ((:file "language")))
+     :pathname "utils"
+     :components
+     ((:file "language")))
 
    (:module "containers"
-    :pathname "utils/containers"
-    :components
+     :pathname "utils/containers"
+     :components
      ((:file "array")
       (:file "hash-table")
       (:file "alist")

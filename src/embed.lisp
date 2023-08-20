@@ -17,6 +17,15 @@
 (defun get-opal-val (string)
   (gethash (sym string) (gethash (sym "main") *opal-modules*)))
 
+(declaim (ftype (function (&rest list) t) opal-val))
+(defun opal-val (&rest path)
+  (let* ((pkg (gethash (sym (elt path 0)) *packages*))
+         (module (gethash (sym (elt path 1)) (modules pkg))))
+    (iter (for name in (cddr path))
+      (with val = (lisp-val module))
+      (setf val (gethash (sym name) val))
+      (finally (return val)))))
+
 (defparameter *diagnostic* nil)
 
 (defun process-module (name imports exports defs)

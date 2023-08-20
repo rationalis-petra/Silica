@@ -1,5 +1,5 @@
 (defpackage opal
-  (:use :cl :trivia :iter :lang-extensions)
+  (:use :cl :trivia :iter :alexandria :lang-extensions)
   (:export
    ;; get opal values from CL
    :run-main

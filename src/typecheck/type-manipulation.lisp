@@ -24,6 +24,7 @@
 
 (defparameter +empty-env+ (make-env :base (ht:empty) :vars nil :vals nil))
 
+(declaim (ftype (function (hash-table) env) make-env-from))
 (defun make-env-from (base)
   (make-env :base base :vars nil :vals nil))
 

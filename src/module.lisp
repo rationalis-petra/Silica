@@ -140,7 +140,7 @@ in all it's modules."
          (al:insert 
           :code
           (reify (al:lookup :typed-ast module) env)
-    s      module)))
+           module)))
 
     (let* (;; TODO: also account for modules at the level of the package!
            (modules (get-available-modules package))
@@ -149,13 +149,14 @@ in all it's modules."
            ;; definition.
            (env (gen-env modules module-raw))
 
+           (ctx (gen-ctx modules module-raw))
            ;; TODO add parser fixity generation
            )
 
       (-> module-raw
           (parse-module)
           (type-module env)
-          (reify-module env)))))
+          (reify-module ctx)))))
 
 (declaim (ftype (function (hash-table list) env) gen-env))
 (defun gen-env (available-modules module-raw)
@@ -170,7 +171,6 @@ in all it's modules."
        (module-export-types (gethash name available-modules))
        by
        (lambda (table-1 table-2)
-         (format t "table-1: ~A~%table-2: ~A~%" table-1 table-2)
          (if table-2
              (ht:merge
               table-1 table-2
@@ -178,7 +178,8 @@ in all it's modules."
              table-1))
        into imported-modules)
 
-      (finally (return (make-env-from imported-modules))))))
+      (finally
+       (return (make-env-from (or imported-modules (ht:empty))))))))
 
 
 (defun module-export-types (module) ;; TODO: add filter as an argument
@@ -197,3 +198,38 @@ in all it's modules."
 
 
 
+
+(declaim (ftype (function (hash-table list) ctx:context) gen-ctx))
+(defun gen-ctx (available-modules module-raw)
+  (let ((imports (al:lookup :import-list module-raw)))
+    ;; for now, assume imports are a list of symbols which designate packages
+    (iter (for name in imports)
+
+      (when (not (gethash name available-modules))
+        (error (format nil "Couldn't find module of name ~A" name)))
+      
+      (accumulate 
+       (module-export-values (gethash name available-modules))
+       by
+       (lambda (table-1 table-2)
+         (if table-2
+             (ht:merge
+              table-1 table-2
+              :by (alexandria:curry #'list :ambiguous-name))
+             table-1))
+       into imported-values
+       initial-value (ht:empty))
+
+      (finally
+       (return (ctx:make-from imported-values))))))
+
+(defun module-export-values (module) ;; TODO: add filter as an argument
+  ;; get exports from a module as a list of symbols
+
+  (iter (for symbol in (exports module))
+    (with out = (ht:empty))
+
+    (setf (gethash symbol out)
+          `(gethash (quote ,symbol) (lisp-val ,module)))
+
+    (finally (return out))))
