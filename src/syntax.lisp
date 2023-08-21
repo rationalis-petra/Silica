@@ -155,6 +155,21 @@
     :reader vals
     :initarg :vals)))
 
+;; yuck!
+(defclass conditional (term)
+  ((test
+    :type term
+    :reader test
+    :initarg :test)
+   (if-true
+    :type term
+    :reader if-true
+    :initarg :if-true)
+   (if-false
+    :type term
+    :reader if-false
+    :initarg :if-false)))
+
 
 (defclass opal-type () ())
 (defclass type-var (opal-type)
@@ -326,6 +341,10 @@
   (make-instance 'projection :structure struct :field field))
 (defun mk-val (val)
   (make-instance 'opal-literal :val val))
+(defun mk-if (test if-true if-false)
+  (make-instance 'conditional :test test
+                              :if-true if-true
+                              :if-false if-false))
 
 (defgeneric atomic? (term)
   (:method ((term var)) t)
@@ -347,7 +366,6 @@
       (when (eq (var entry) field)
         (return (ann (binder entry)))))))
 
-; TODO: α<
 (defgeneric α= (l r &optional renamings shadowed)
   (:documentation "Predicate: return true if two terms equal up to α-renaming")
   ;; Terms 
@@ -485,6 +503,83 @@
     (and (α= (from k1) (from k2)) (α= (to k1) (to k2))))
   
   (:method (l r &optional renamings shadowed)
+    (declare (ignore l r renamings shadowed))
+    nil))
+
+(defun α>= (l r &optional renamings shadowed)
+  (α<= r l renamings shadowed))
+
+(defgeneric α<= (l r &optional renamings shadowed)
+  (:documentation "Predicate: return true if the lhs is a subtype of the rhs up to α-renaming")
+    (:method ((l type-lambda) (r type-lambda) &optional renamings shadowed)
+    (and 
+     (or (and (not (slot-boundp l 'var-kind)) (not (slot-boundp r 'var-kind)))
+         (α= (var-kind l) (var-kind r)))
+     (α<= (body l) (body r)
+          (acons (var l) (var r) renamings)
+          (cons (cons (var l) (car shadowed))
+                (cons (var l) (car shadowed))))))
+
+
+  ;; TODO
+  (:method ((l tapp) (r tapp) &optional renamings shadowed)
+    (and
+     (α= (left l) (left r) renamings shadowed)
+     (α= (right l) (right r) renamings shadowed)))
+
+  ;; Types
+  (:method ((l native-type) (r native-type) &optional renamings shadowed)
+    (declare (ignore renamings shadowed))
+    (subtypep (native-type l) (native-type r)))
+
+  (:method ((l forall) (r forall) &optional renamings shadowed)
+    (α<= (body l) (body r)
+         (acons (var l) (var r) renamings)
+         (cons (cons (var l) (car shadowed))
+               (cons (var r) (cdr shadowed)))))
+
+  (:method ((l arrow) (r arrow) &optional renamings shadowed)
+    (and (α<= (from l) (from r) renamings shadowed)
+         (α>= (to l) (to r) renamings shadowed)))
+    
+  (:method ((l type-var) (r type-var) &optional renamings shadowed)
+    (let ((entry (assoc (var l) renamings)))
+      (if entry
+          (eq (cdr entry) (var r))
+          (and (eq (member (var l) (car shadowed))
+                   (member (var r) (cdr shadowed)))
+               (eq (var l) (var r))))))
+
+  (:method ((l signature) (r signature) &optional renamings shadowed)
+    ;; TODO: lots of work here
+    (and 
+     (iter (for entry-1 in (entries l))
+           (for entry-2 in (entries r))
+       (always
+        (and (eq (var entry-1) (var entry-2))
+             (α= (binder entry-1) (binder entry-2) renamings shadowed))))
+     (= (length (entries l)) (length (entries r)))))
+
+  ;; Equality of defs/decls
+  (:method ((l opal-definition) (r opal-definition)
+            &optional renamings shadowed)
+    (α<= (val l) (val r)
+        (acons (var l) (var r) renamings)
+        (cons (cons (var l) (car shadowed))
+              (cons (var r) (cdr shadowed)))))
+
+  (:method ((l opal-declaration) (r opal-declaration)
+            &optional renamings shadowed)
+    (α<= (ann l) (ann r)
+        (acons (var l) (var r) renamings)
+        (cons (cons (var l) (car shadowed))
+              (cons (var r) (cdr shadowed)))))
+
+  (:method ((l kind) (r kind) &optional renamings shadowed)
+    (α= l r renamings shadowed))
+
+  ;; otherwise: false
+  (:method ((l opal-type) (r opal-type) &optional renamings shadowed)
     (declare (ignore l r renamings shadowed))
     nil))
 

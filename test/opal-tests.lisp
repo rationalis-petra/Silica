@@ -10,7 +10,7 @@
 
 ;; Utility functions for constructing objects for use in testing.
 (defun entries (&rest terms)
-  (mapcar (lambda (term) (mk-entry (var term) term)) terms))
+  (mapcar (lambda (term) (mk-entry (opal::var term) term)) terms))
 
 
 (define-test all)

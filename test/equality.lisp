@@ -15,7 +15,7 @@
         (mk-karr (mk-kind) (mk-kind)))
 
     (is α=
-        (mk-∀ 'a (mk-var 'a))
+        (mk-∀ 'a (mk-var 'a)) 
         (mk-∀ 'a (mk-var 'a)))
 
     (is α=
@@ -34,12 +34,16 @@
         (mk-app (mk-val 2) (mk-val 2)))
 
     (is α=
+        (mk-app (mk-tvar 'a) (mk-native 'integer))
+        (mk-app (mk-tvar 'a) (mk-native 'integer)))
+
+    (is α=
         (mk-∀ 'a (mk-arr int-type (mk-var 'a)))
         (mk-∀ 'b (mk-arr int-type (mk-var 'b))))
 
     (is α=
         (mk-sig (entries (mk-decl 'x int-type)))
-        (mk-sig (entries (mk-decl 'x int-type))))
+        (mk-sig (entries (mk-decl 'x int-type)))) 
 
     (is α=
         (mk-sig (entries

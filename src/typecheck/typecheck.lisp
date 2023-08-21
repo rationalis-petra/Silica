@@ -7,13 +7,13 @@
   (:documentation "Perform typechecking.")
 
   (:method ((term lisp-form) type env)
-    (if (α-r= type (form-type term) env)
+    (if (β<= (form-type term) type env)
         term
         (error
          (format nil "Types not equal: ~A and ~A~%" type (form-type term)))))
 
   (:method ((term var) type env)
-    (if (α-r= type (lookup (var term) env) env)
+    (if (β<= type (lookup (var term) env) env)
         (typecase type
           (kind (mk-tvar (var term)))
           (opal-type (mk-mvar (var term))))
@@ -21,13 +21,13 @@
                        (var term) type (lookup (var term) env)))))
 
   (:method ((term term-var) type env)
-    (if (α-r= type (lookup (var term) env) env)
+    (if (β<= type (lookup (var term) env) env)
         term
         (error (format nil "Var ~A does not have type ~A, but rather~A~%"
                        (var term) type (lookup (var term) env)))))
 
   (:method ((term type-var) type env)
-    (if (α-r= type (lookup (var term) env) env)
+    (if (β<= type (lookup (var term) env) env)
         term
         (error (format nil "Var ~A does not have type ~A, but rather~A~%"
                        (var term) type (lookup (var term) env)))))
@@ -137,6 +137,12 @@
               (setf prev-decl decl)
               (setf locals (bind (var decl) (ann decl) locals)))))))))
 
+  (:method ((term conditional) (type opal-type) env)
+    (let* ((test (check (test term) (mk-native 'boolean) env))
+           (if-true (check (if-true term) type env))
+           (if-false (check (if-false term) type env)))
+      (mk-if test if-true if-false)))
+
   (:method ((term projection) (type opal-type) env)
     (let* ((struct-result (infer (opal-struct term) env))
            (struct-ty (car struct-result))
@@ -155,7 +161,7 @@
            (rv (cdr right-result)))
       (typecase lt
         (arrow
-         (unless (and (α-r= (from lt) rt env) (α-r= (to lt) type env))
+         (unless (and (β>= (from lt) rt env) (β<= (to lt) type env))
            (error (format nil "Bad application of function: ~A to ~A.
  Type mismatch: ~A and ~A"
                           (left term)
@@ -279,10 +285,9 @@
            (rv (cdr right-result)))
       (typecase lt
         (arrow
-         (if (α-r= (from lt) rt env)
+         (if (β>= (from lt) rt env)
              (cons (to lt) (mk-app lv rv))
-             (error "Bad application: term of type ~A cannot be applied to term
-           of type ~A" rt lt)))
+             (error "Bad application: term of type ~A cannot be applied to term of type ~A" rt lt)))
         (kind-arrow
          (if (α= (from lt) rt)
              (cons (to lt) (mk-tapp lv rv))
@@ -370,6 +375,14 @@
                                 (lambda (x)
                                   (mk-entry (var x) x))
                                 out-entries))))))))
+  (:method ((term conditional) env)
+    (let* ((test (check (test term) (mk-native 'boolean) env))
+           (if-true (infer (if-true term) env))
+           (if-false (infer (if-false term) env)))
+      (α-r= (car if-true) (car if-false) env)
+      (cons 
+       (car if-true)
+       (mk-if test if-true if-false))))
 
   (:method ((term projection) env)
     (let* ((struct-result (infer (opal-struct term) env))

@@ -215,3 +215,18 @@ values, to deal with existential typing."
     (α= (ty-eval l env) (ty-eval r env)))
 
 
+
+(defun β= (l r env)
+  "Tests for α-equality in environment env. This allows substituting types for
+values, to deal with existential typing."
+    (α= (ty-eval l env) (ty-eval r env)))
+
+(defun β<= (l r env)
+  "Tests for α-equality in environment env. This allows substituting types for
+values, to deal with existential typing."
+    (α<= (ty-eval l env) (ty-eval r env)))
+
+(defun β>= (l r env)
+  "Tests for α-equality in environment env. This allows substituting types for
+values, to deal with existential typing."
+    (α>= (ty-eval l env) (ty-eval r env)))

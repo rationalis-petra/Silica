@@ -16,7 +16,8 @@
    :reify ;; compile
 
    ;; comparisons
-   :α= ;:β=
+   :α= :α>= :α<=
+   :β= :β<= :β>=
 
    ;; Constructors and values
    :mk-var :mk-app :mk-λ :mk-arr :mk-entry

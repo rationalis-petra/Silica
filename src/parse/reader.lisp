@@ -71,6 +71,16 @@
       ((numchar? char) (read stream))
       (t (parse-symbol stream)))))
 
+(declaim (ftype (function (stream) string) parse-string))
+(defun parse-string (stream)
+  (read-char stream)
+  (let ((os (make-string-output-stream)))
+    (iter (while (char/= #\" (peek-char nil stream)))
+      (write-char (read-char stream) os))
+    (read-char stream)
+    (get-output-stream-string os)))
+
+
 
 (declaim (ftype (function (stream) list) parse-list))
 (defun parse-list (stream)
@@ -108,6 +118,7 @@
           (format nil "closing ) without matching opening ( at ~A"
                   (file-position stream))))
 
+    (#\" (parse-string stream))
     (#\⟦ (parse-sexpr stream))
     (#\⟧ (error (format nil
                         "closing ⟧ without matching opening ⟦ at ~A"

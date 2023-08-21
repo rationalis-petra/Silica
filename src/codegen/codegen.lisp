@@ -2,6 +2,8 @@
 
 (defvar *opal-modules* (make-hash-table))
 
+
+
 (defgeneric reify (term context)
   (:documentation "Take a term and convert it into a piece of lisp code with the
   appropriate semantics.")
@@ -49,7 +51,15 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
                    (with current-ctx = ctx)
 
                (setf current-ctx (ctx:hide (var def) current-ctx))
-               (collect (list (var def) (reify (val def) current-ctx))))))
+               (collect
+                   (list (var def) ;; TODO: replace this var with the entry var!
+                         (if (or (typep (val def) 'opal-lambda)
+                                 (typep (val def) 'term-lambda))
+                           ;; a function; is recursive!
+                           (reify-named-lambda (var def) (val def) ctx)
+
+                           ;; a term; is not recursive!
+                           (reify (val def) ctx)))))))
          (get-vars (entries)
            (iter (for entry in entries)
              (when (typep (binder entry) 'opal-definition)
@@ -70,6 +80,13 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
     "Reify a field access (s.f). Do do this by converting it to (gethash 'f s)"
     `(gethash (quote ,(field term)) ,(reify (opal-struct term) ctx)))
 
+  (:method ((term conditional) ctx)
+    "Reify a conditional (if e1 e2 e3). Do do this by converting it to the
+common lisp (if e1 e2 e3)"
+    `(if ,(reify (test term) ctx)
+         ,(reify (if-true term) ctx)
+         ,(reify (if-false term) ctx)))
+
   (:method ((term symbol) ctx)
     (if-let (val (ctx:lookup (var term) ctx))
       val
@@ -77,3 +94,20 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
 
   (:method ((term opal-literal) ctx) (val term))
   (:method (term ctx) term))
+
+(defun fix (f)
+  "Return the fixpoint of function f"
+  (let ((func nil))
+    (setf func (lambda (x) (funcall (funcall f func) x)))
+    func))
+
+(defun reify-named-lambda (name term ctx)
+  `(fix
+    (lambda (,name)
+      (lambda (,(var term))
+        ,(reify (body term) (ctx:hide (var term) ctx))))))
+
+;; (defun reify-named-lambda (name term ctx)
+;;   `(labels
+;;     ((,name (,(var term))
+;;        ,(reify (body term) (ctx:hide (var term) ctx))))))

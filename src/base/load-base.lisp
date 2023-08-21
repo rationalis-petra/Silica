@@ -32,11 +32,29 @@ package for use in other projects/packages."
                :name (sym "base")
                :exported-modules
                (list
+                (sym "unit")
+                (sym "bool")
                 (sym "int")
-                (sym "float")))))
+                (sym "float")
+
+                (sym "string")
+
+                (sym "io")
+
+                (sym "console")
+                ))))
     ;; TODO: add a num module
-    (load-base-module (sym "int") "numerics/int" base)
-    (load-base-module (sym "float") "numerics/float" base)
+
+    (load-base-module (sym "bool") "num/bool" base)
+    (load-base-module (sym "int") "num/int" base)
+    (load-base-module (sym "float") "num/float" base)
+    (load-base-module (sym "unit") "num/unit" base)
+
+    (load-base-module (sym "string") "data/string" base)
+
+    (load-base-module (sym "io") "control/io" base)
+
+    (load-base-module (sym "console") "sys/console" base)
 
     (setf (gethash (sym "base") *packages*) base)))
 

@@ -99,8 +99,28 @@ modular recompilation. "))
 
     (finally (return exports))))
 
-(declaim (ftype (function (opal-package) hash-table) get-available-modules))
-(defun get-available-modules (package)
+(declaim (ftype (function (opal-package list) hash-table) get-available-modules))
+(defun get-available-modules (package path)
+  "Given a package, and a path to a module inside that package (not yet built),
+get a list of all modules available for import inside that module."
+  (declare (ignore path))
+  (flet ((merge-exports (t1 t2)
+          (ht:merge t1 t2
+                    :by (alexandria:curry #'list :ambiguous-name))))
+    (merge-exports
+     (iter (for pkg-name in (dependencies package))
+       (accumulate
+        (get-exports (get-package pkg-name))
+        by #'merge-exports
+        :initial-value (ht:empty)))
+     (iter (for (name module) in-hashtable (modules package))
+       (accumulate
+        (ht:make (name . module))
+        by #'merge-exports
+        :initial-value (ht:empty))))))
+
+(declaim (ftype (function (opal-package) hash-table) get-externally-available-modules))
+(defun get-externally-available-modules (package)
   "Given a package, get a list of modules which should be available for import
 in all it's modules."
   (iter (for pkg-name in (dependencies package))
@@ -143,7 +163,7 @@ in all it's modules."
            module)))
 
     (let* (;; TODO: also account for modules at the level of the package!
-           (modules (get-available-modules package))
+           (modules (get-available-modules package nil))
 
            ;; Generate typechecking environment from imported modules + module
            ;; definition.
@@ -160,7 +180,14 @@ in all it's modules."
 
 (declaim (ftype (function (hash-table list) env) gen-env))
 (defun gen-env (available-modules module-raw)
-  (let ((imports (al:lookup :import-list module-raw)))
+  (let ((imports (al:lookup :import-list module-raw))
+        (merge-func
+          (lambda (table-1 table-2)
+            (if table-2
+                (ht:merge
+                 table-1 table-2
+                 :by (alexandria:curry #'list :ambiguous-name))
+                table-1))))
     ;; for now, assume imports are a list of symbols which designate packages
     (iter (for name in imports)
 
@@ -169,13 +196,7 @@ in all it's modules."
       
       (accumulate 
        (module-export-types (gethash name available-modules))
-       by
-       (lambda (table-1 table-2)
-         (if table-2
-             (ht:merge
-              table-1 table-2
-              :by (alexandria:curry #'list :ambiguous-name))
-             table-1))
+       by merge-func
        into imported-modules)
 
       (finally

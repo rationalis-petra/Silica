@@ -16,6 +16,7 @@
 (defvar *ann-sym* (sym "◂"))
 (defvar *native-sym* (sym "native"))
 (defvar *lisp-sym* (sym "lisp"))
+(defvar *if-sym* (sym "if"))
 
 ;; types
 (defvar *forall-sym* (sym "∀"))
@@ -104,6 +105,10 @@
         (let ((proj (mk-proj (cadr term) (to-ast (caddr term)))))
           (format t "proj: ~A" proj)
           proj))
+       ((eq *if-sym* (car term))
+        (mk-if (to-ast (elt term 1))
+               (to-ast (elt term 2))
+               (to-ast (elt term 3))))
        ((eq *lisp-sym* (car term))
         (mk-lisp (to-ast (elt term 1)) (elt term 3)))
 
