@@ -1,6 +1,8 @@
 (in-package :opal)
 
-;; we use biridrectional typechecking
+(defvar *supress-print* nil)
+
+;; we use bidirectional typechecking
 ;; i.e. 1x check method, 1x infer method
 (declaim (ftype (function (t t t) (or term opal-type)) check))
 (defgeneric check (term type env)
@@ -42,7 +44,7 @@
              (check (body term) to (bind (var term) from env))))
       (if (slot-boundp term 'var-type)
           (if (α-r= (from type) (check (var-type term) (mk-kind) env) env)
-              (body-check (var-type term) (to type))
+              (mk-mλ (var term) (from type) (body-check (var-type term) (to type)))
               (error "Declared function argument type doesn't match actual type"))
           (mk-mλ (var term)
                 (from type)
@@ -93,22 +95,23 @@
        (iter (for entry in (entries term))
              (for binder = (binder entry))
              (with decls = (entries type))
+             (with locals = +empty-env+)
+             (with prev-decl = nil)
+
          ;; locals = local declarations
-         (with locals = +empty-env+)
-         (with prev-decl = nil)
          ;; (with type-vals = nil)
-         (typecase entry
+         (typecase binder
            (opal-definition
-            (let* ((decl (or (when prev-decl (binder prev-decl)) (pop decls)))
+            (let* ((decl-entry (or prev-decl (pop decls)))
                    (new-val
                      (check
                       (val binder)
-                      (ty-eval (ann decl) (join locals env))
+                      (ty-eval (ann (binder decl-entry)) (join locals env))
                       (join locals env))))
 
-              (unless (eq (var entry) (var decl))
+              (unless (eq (var entry) (var decl-entry))
                 (error "Definition variable not equal to declaration variable: ~A ~A"
-                       (var entry) (var decl)))
+                       (var entry) (var decl-entry)))
 
 
               ;; Update locals
@@ -117,17 +120,17 @@
                  ;; if current definition defines a term, check if it's been declared
                  ;; if not, add it into the locals
                  (unless prev-decl
-                   (setf locals (bind (var decl) (ann decl) locals))))
+                   (setf locals (bind (var (binder decl-entry)) (ann (binder decl-entry)) locals))))
                 (opal-type
                  ;; if current definition defines a type, add it's kind and
                  ;; value into local
                  (if prev-decl
-                     (setf locals (bind-existing-val (var decl) new-val locals))
-                     (setf locals (bind-2 (var decl) (ann decl) new-val locals)))))
+                     (setf locals (bind-existing-val (var (binder decl-entry)) new-val locals))
+                     (setf locals (bind-2 (var (binder decl-entry)) (ann (binder decl-entry)) new-val locals)))))
               (setf prev-decl nil)
 
-              (collect decl)
-              (collect (mk-def (var entry) new-val))))
+              (collect decl-entry)
+              (collect (mk-entry (var entry) (mk-def (var entry) new-val)))))
            (opal-declaration
             (let ((decl (pop decls)))
               (when prev-decl
@@ -135,7 +138,7 @@
               (unless (α-r= entry decl env) ;; TODO: substitute value!
                 (error "Can't deal with declarations in structures (σ)"))
               (setf prev-decl decl)
-              (setf locals (bind (var decl) (ann decl) locals)))))))))
+              (setf locals (bind (var (binder decl)) (ann (binder decl)) locals)))))))))
 
   (:method ((term conditional) (type opal-type) env)
     (let* ((test (check (test term) (mk-native 'boolean) env))
@@ -153,32 +156,39 @@
 
   (:method ((term app) (type opal-type) env)
     (let* ((left-result (infer (left term) env))
-           (right-result (infer (right term) env))
 
            (lt (car left-result))
-           (lv (cdr left-result))
-           (rt (car right-result))
-           (rv (cdr right-result)))
+           (lv (cdr left-result)))
       (typecase lt
         (arrow
-         (unless (and (β>= (from lt) rt env) (β<= (to lt) type env))
-           (error (format nil "Bad application of function: ~A to ~A.
- Type mismatch: ~A and ~A"
-                          (left term)
-                          (right term)
-                          lt rt))))
+         (if (β<= (to lt) type env)
+             (mk-app lv (check (right term) (ty-eval (from lt) env) env))
+             (error (format nil "Bad application of function: ~A to ~A. ~%Expected output type ~A but got ~A"
+                            (left term)
+                            (right term)
+                            type (to lt)))))
         (kind-arrow
-         (unless (and (α= (from lt) rt) (α= (to lt) type))
-           (error "Bad application of type constructor")))
+         (if (α= (to lt) type)
+             (mk-app lv (check (right term) (ty-eval (from lt) env) env))
+             (error "Bad application of type constructor")))
+
         (forall
-         (unless (and (or (not (slot-boundp lt 'var-kind))
-                      (α= (var-kind lt) rt))
-                  (α-r= (ty-subst (body lt) (acons (var lt) rt nil))
+         ;; Assume kind is τ if not provided (TODO: kind inference!)
+         (let* ((kind (if (slot-boundp lt 'var-kind)
+                         (var-kind lt)
+                         (mk-kind)))
+
+                ;; Check that rhs has the expected kind 
+                (right-val (check (right term) kind env)))
+
+           ;; check that applying r to l gives the type we expect
+           (unless (β<= (ty-subst (body lt) (acons (var lt) right-val nil))
                         type
-                        env))
-           (error "Bad application of abstraction")))
-        (t (error "Applying to neither function or abstraction")))
-      (mk-app lv rv)))
+                        env)
+             (error "Bad application of abstraction"))
+
+           (mk-tapp lv right-val)))
+        (t (error "Applying to neither function or abstraction")))))
 
   ;; Kind Checking
   (:method ((type native-type) (kind kind-type) env) type)

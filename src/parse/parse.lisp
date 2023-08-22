@@ -9,7 +9,7 @@
 (defun sym (name) (intern name :opal-symbols))
 (defvar *lambda-sym* (sym "λ"))
 (defvar *cap-lambda-sym* (sym "Λ"))
-(defvar *pi-sym* (sym "π"))
+(defvar *pi-sym* (sym "."))
 (defvar *sigma-sym* (sym "σ")) 
 (defvar *cap-sigma-sym* (sym "Σ"))
 (defvar *def-sym* (sym "≜"))
@@ -35,18 +35,21 @@
    (not (eq char #\∀))
    (not (eq char #\∃))))
 
+(declaim (ftype (function (t) boolean) infix?))
 (defun infix? (val)
   (when (typep val 'symbol)
     (every #'special? (string val))))
 
 
+(declaim (ftype (function (list) (or opal-declaration opal-definition)) to-def))
 (defun to-def (definition)
+  "Produce a definition from a boi"
   (let ((name (if (listp (cadr definition))
                   (caadr definition)
                   (cadr definition)))
         (body (caddr definition)))
     (flet ((mk-fun (args expr)
-             (reduce (lambda (x y) (mk-λ y x))
+             (reduce (lambda (x y) (mk-λ (get-var y) x))
                      (cons expr (reverse args)))))
       (cond 
         ((eq *def-sym* (car definition))
@@ -62,12 +65,20 @@
                       (to-ast body))))
         (t (error "bad def!"))))))
 
+(defun get-var (x)
+  (cond
+    ((typep x 'symbol) x)
+    ((and (typep x 'list) (= (length x) 1))
+     (get-var (car x)))
+    (t (error (format nil "malformed var, reached:~A" x)))))
 
 (defun mk-abstraction (term abstractor)
   (flet ((abstract-decl? (func decl body)
-           (typecase decl
-             (symbol (funcall func decl body))
-             (list
+           (cond
+             ((typep decl 'symbol) (funcall func decl body))
+             ((and (typep decl 'list) (= (length decl) 1))
+              (funcall func (get-var decl) body))
+             (t
               (let ((decl2 (to-def decl)))
                 (assert (typep decl2 'opal-declaration))
                 (funcall func (var decl2) (ann decl2) body))))))
@@ -79,6 +90,8 @@
                    (reverse (cadr term))))))))
 
 (defun to-ast (term)
+  "Take a raw concrete ast (represented as a list), and convert it into an opal
+syntax-tree."
   (match term
     ((type keyword)
      (mk-val term))
@@ -102,9 +115,7 @@
          (mapcar (lambda (def) (make-instance 'entry :var (var def) :binder def))
                  (mapcar #'to-def (cdr term)))))
        ((eq *pi-sym* (car term))
-        (let ((proj (mk-proj (cadr term) (to-ast (caddr term)))))
-          (format t "proj: ~A" proj)
-          proj))
+        (mk-proj (get-var (caddr term)) (to-ast (cadr term))))
        ((eq *if-sym* (car term))
         (mk-if (to-ast (elt term 1))
                (to-ast (elt term 2))
@@ -128,19 +139,28 @@
         (reduce #'mk-app (mapcar #'to-ast term)))))
 
     ((type number) (mk-val term))
-    ((type string)  (mk-val term))
+    ((type string) (mk-val term))
     ;; Possibly remove above??
     (_ (error (format nil "failed to match:~A" term)))))
 
 
+(defun point-tighten (term)
+  "'Tighten' expressions containing a point, e.g. convert a . b + c to
+(a . b) + c, or f . g h to (f . g) h. This ensures that '.' will always be
+  treated with the highest priority."
+  term)
+
 (defun infixify (term)
+  "Take raw concrete syntax tree (represented as a list), and transform it so
+that infix operations are moved prefix. For example '(2 + a) is converted to
+'(+ 2 a), and '(a + b * c) is converted to '(+ a (* b c))."
   (cond
     ((and (typep term 'list) (eq (car term) *lisp-sym*))
      (cons (car term) (cons (infixify (cadr term)) (cddr term))))
-    ((and (typep term 'list)
-          (= 1 (length term))
-          (infix? (car term)))
-     (car term))
+
+    ;; (n) → (infix n)
+    ((and (typep term 'list) (= 1 (length term)))
+     (mapcar #'infixify term))
 
     ((typep term 'list)
      (flet ((proc-head (head)
@@ -164,3 +184,10 @@
              (push elt vals))
          (finally (return (proc-head vals))))))
     (t term)))
+
+
+(defun module-header (term)
+  "Parse a module header"
+  (flet ((parse-import-list (import-list)))
+
+  ))

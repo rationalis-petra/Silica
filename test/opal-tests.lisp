@@ -1,12 +1,12 @@
 
-(defpackage :opal.tests
+(defpackage :opal-tests
   (:use :cl :opal :parachute)
   (:export :all
    :typing
    :equality
    :parsing
    :infixify))
-(in-package :opal.tests)
+(in-package :opal-tests)
 
 ;; Utility functions for constructing objects for use in testing.
 (defun entries (&rest terms)

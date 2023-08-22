@@ -583,6 +583,14 @@
     (declare (ignore l r renamings shadowed))
     nil))
 
+(declaim (ftype (function ((or term kind opal-type)
+                           &optional (function (t) boolean))
+                          string)
+                mparen))
+(defun mparen (val &optional (test-func #'atomic?))
+  (if (funcall test-func val)
+      (show val)
+      (concatenate 'string "(" (show val) ")")))
 
 ;; TODO: document/layout engine (truncate at n chars)
 (defgeneric show (val)
@@ -603,13 +611,9 @@
 
   (:method ((val app))
     (let ((stream (make-string-output-stream)))
-      (flet ((mparen (val)
-               (if (atomic? val)
-                 (show val)
-                 (concatenate 'string "(" (show val) ")"))))
-        (write-string (mparen (left val)) stream)
-        (write-string " " stream)
-        (write-string (mparen (right val)) stream))
+      (write-string (mparen (left val)) stream)
+      (write-string " " stream)
+      (write-string (mparen (right val)) stream)
       (get-output-stream-string stream)))
 
   (:method ((val opal-lambda))
@@ -640,14 +644,16 @@
       (write-string ")" stream)
       (get-output-stream-string stream)))
 
+  (:method ((val conditional))
+    (format nil "if ~A ~A ~A"
+            (mparen (test val))
+            (mparen (if-true val))
+            (mparen (if-false val))))
+
   (:method ((val projection))
-    (flet ((mparen (val)
-             (if (atomic? val)
-                 (show val)
-                 (concatenate 'string "(" (show val) ")"))))
-      (format nil "~A⋅~A"
-              (mparen (opal-struct val))
-              (field val))))
+    (format nil "~A⋅~A"
+            (mparen (opal-struct val))
+            (field val)))
 
 
   ;; For types
@@ -655,27 +661,19 @@
     (format nil "~A" (native-type type)))
 
   (:method ((type arrow))
-    (flet ((mparen (pred val)
-             (if (funcall pred val)
-                 (show val)
-                 (concatenate 'string "(" (show val) ")"))))
-      (format nil "~A → ~A"
-              (mparen #'atomic? (from type))
-              (mparen (lambda (v) (or (atomic? v) (typep v 'arrow)))
-                      (to type)))))
+    (format nil "~A → ~A"
+            (mparen (from type))
+            (mparen (to type)
+                    (lambda (v) (or (atomic? v) (typep v 'arrow))))))
 
   (:method ((type forall))
     (format nil "∀ ~A. ~A" (var type) (show (body type))))
 
   (:method ((type tapp))
     (let ((stream (make-string-output-stream)))
-      (flet ((mparen (val)
-               (if (atomic? val)
-                 (show val)
-                 (concatenate 'string "(" (show val) ")"))))
-        (write-string (mparen (left type)) stream)
-        (write-string " " stream)
-        (write-string (mparen (right type)) stream))
+      (write-string (mparen (left type)) stream)
+      (write-string " " stream)
+      (write-string (mparen (right type)) stream)
       (get-output-stream-string stream)))
 
   (:method ((type signature))

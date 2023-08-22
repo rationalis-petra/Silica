@@ -34,6 +34,13 @@
 ;; 
 (in-package :opal)
 
+(declaim (ftype (function (stream) null) consume-line))
+(defun consume-line (stream)
+  (iter (while
+         (or
+          (not (peek-char nil stream nil nil))
+          (char/= (read-char stream) #\newline)))))
+
 (declaim (ftype (function (character) boolean) whitespace?))
 (defun whitespace? (char)
   (if (member
@@ -131,6 +138,7 @@
   (iter (while t)
     (match (peek-char t stream nil :end)
       (:end (return (raw-module output)))
+      (#\⍝ (consume-line stream))
       (_ (collect (parse-expr stream) into output)))))
 
 ;;(defun raw-module (sexpr) sexpr)

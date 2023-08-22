@@ -37,7 +37,7 @@ package for use in other projects/packages."
                 (sym "int")
                 (sym "float")
 
-                (sym "string")
+                (sym "text")
 
                 (sym "io")
 
@@ -50,7 +50,7 @@ package for use in other projects/packages."
     (load-base-module (sym "float") "num/float" base)
     (load-base-module (sym "unit") "num/unit" base)
 
-    (load-base-module (sym "string") "data/string" base)
+    (load-base-module (sym "text") "data/text" base)
 
     (load-base-module (sym "io") "control/io" base)
 

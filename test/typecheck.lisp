@@ -1,4 +1,4 @@
-(in-package :opal.tests)
+(in-package :opal-tests)
 
 ;; https://gist.github.com/zmactep/c5e167c86fb8d80dcd5532792371863f
 ;; https://arxiv.org/abs/1803.02473

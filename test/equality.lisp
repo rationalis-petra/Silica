@@ -1,4 +1,4 @@
-(in-package :opal.tests)
+(in-package :opal-tests)
 
 (defparameter int-type (make-instance
                         'opal::native-type

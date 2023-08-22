@@ -1,4 +1,4 @@
-(in-package :opal.tests)
+(in-package :opal-tests)
 
 
 
