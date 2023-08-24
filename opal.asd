@@ -27,7 +27,7 @@
      :depends-on ("syntax")
      :components
      ((:file "parse")
-      (:file "reader")))
+      (:file "reader" :depends-on ("parse"))))
    (:module "typecheck"
      :pathname "typecheck"
      :depends-on ("syntax")

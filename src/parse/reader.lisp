@@ -144,12 +144,55 @@
 ;;(defun raw-module (sexpr) sexpr)
 
 (defun raw-module (sexpr)
-  (let* ((header (car sexpr))
-         (terms (cddr header))
-         (import-list (al:lookup (sym "import") terms))
-         (export-list (al:lookup (sym "export") terms)))
+  (al:<>
+   (module-header (car sexpr))
+   (al:make
+    (:body . (cdr sexpr)))))
 
-    (al:make
-     (:import-list . import-list)
-     (:export-list . export-list)
-     (:body . (cdr sexpr)))))
+(defun module-header (header)
+  "Parse a module header"
+  (labels ((proc-list (field-list)
+           (iter (for elt in field-list)
+             (typecase elt
+               (symbol
+                (if (eq elt (sym "_"))
+                    (return elt)
+                    (collect elt)))
+               (t (error "field-list expects only symbols")))))
+
+         (parse-import-list (import-list)
+           (iter (for elt in import-list)
+             (with accum = nil)
+             (with prev = :dot)
+
+             (cond
+               ((proj-sym? elt)
+                (if (not (eq prev :dot))
+                    (setf prev :dot)
+                    (error "two '.'s in a row (or starting with a .)")))
+
+               ((typep elt 'list)
+                (if (eq prev :dot)
+                    (push (proc-list elt) accum)
+                    (progn
+                      (collect (reverse accum) into import-decls)
+                      (setf accum (list (proc-list elt)))))
+                (setf prev nil))
+               ((typep elt 'symbol)
+                (if (eq prev :dot)
+                    (push elt accum)
+                    (progn
+                      (collect (reverse accum) into import-decls)
+                      (setf accum (list elt))))
+                (setf prev nil))
+
+               (t (error "unexpected form in module header")))
+
+             (finally
+              (when accum (return (li:<> import-decls (list (reverse accum)))))))))
+
+         (let ((terms (cddr header)))
+           (al:make
+            (:import-list . (parse-import-list
+                             (al:lookup (sym "import") terms)))
+            (:export-list . (al:lookup (sym "export") terms))))))

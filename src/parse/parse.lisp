@@ -7,9 +7,12 @@
   (:export "λ" "Λ" "π" "σ" "Σ" "∀" "→" "≜" "◂" "lisp"))
 
 (defun sym (name) (intern name :opal-symbols))
+
 (defvar *lambda-sym* (sym "λ"))
+(defvar *arrow-sym* (sym "→"))
 (defvar *cap-lambda-sym* (sym "Λ"))
-(defvar *pi-sym* (sym "."))
+(defvar *forall-sym* (sym "∀"))
+(defvar *dot-sym* (sym "."))
 (defvar *sigma-sym* (sym "σ")) 
 (defvar *cap-sigma-sym* (sym "Σ"))
 (defvar *def-sym* (sym "≜"))
@@ -17,13 +20,59 @@
 (defvar *native-sym* (sym "native"))
 (defvar *lisp-sym* (sym "lisp"))
 (defvar *if-sym* (sym "if"))
-
-;; types
-(defvar *forall-sym* (sym "∀"))
-(defvar *arrow-sym* (sym "→"))
-
-;; kinds
 (defvar *kind-sym* (sym "τ"))
+
+(defvar *wildcard-sym* (sym "_"))
+(defvar *pkg-wildcard-sym* (sym "…"))
+
+(defun func-sym? (sym)
+  (eq sym *lambda-sym*))
+(defun arrow-sym? (sym)
+  (eq sym *arrow-sym*))
+(defun abs-sym? (sym)
+  (eq sym *cap-lambda-sym*))
+(defun forall-sym? (sym)
+  (eq sym *forall-sym*))
+(defun proj-sym? (sym)
+  (eq sym *dot-sym*))
+(defun struct-sym? (sym)
+  (eq sym *sigma-sym*))
+(defun sig-sym? (sym)
+  (eq sym *cap-sigma-sym*))
+(defun def-sym? (sym)
+  (eq sym *def-sym*))
+(defun ann-sym? (sym)
+  (eq sym *ann-sym*))
+(defun cond-sym? (sym)
+  (eq sym *if-sym*))
+(defun native-sym? (sym)
+  (eq sym *native-sym*))
+(defun lisp-sym? (sym)
+  (eq sym *lisp-sym*))
+(defun kind-sym? (sym)
+  (eq sym *kind-sym*))
+(defun wildcard-sym? (sym)
+  (eq sym *wildcard-sym*))
+(defun pkg-wildcard-sym? (sym)
+  (eq sym *pkg-wildcard-sym*))
+
+(defun keyword-sym? (sym)
+  (or (func-sym? sym)
+      (arrow-sym? sym)
+      (abs-sym? sym)
+      (forall-sym? sym)
+      (proj-sym? sym)
+      (struct-sym? sym)
+      (sig-sym? sym)
+      (kind-sym? sym)
+      (def-sym? sym)
+      (ann-sym? sym)
+      (cond-sym? sym)
+      (native-sym? sym)
+      (lisp-sym? sym)
+      (wildcard-sym? sym)
+      (pkg-wildcard-sym? sym)))
+
 (defvar *kind-t* (mk-kind))
 
 (defun special? (char)
@@ -96,35 +145,37 @@ syntax-tree."
     ((type keyword)
      (mk-val term))
     ((type symbol)
-     (if (eq *kind-sym* term)
-         *kind-t*
-         (mk-var term))) ;; TODO ensure is not keyword
+     (cond
+       ((eq *kind-sym* term) *kind-t*)
+       ((keyword-sym? term)
+        (error (format nil "keyword ~A occurred in bad location" term)))
+       (t (mk-var term))))
     ((type list)
      (cond
        ;; Terms
-       ((eq *lambda-sym* (car term))
+       ((func-sym? (car term))
         (mk-abstraction term #'mk-λ))
-       ((eq *cap-lambda-sym* (car term))
+       ((abs-sym? (car term))
         (mk-abstraction term #'mk-abs))
-       ((eq *sigma-sym* (car term))
+       ((struct-sym? (car term))
         (mk-struct
          (mapcar (lambda (def) (make-instance 'entry :var (var def) :binder def))
                  (mapcar #'to-def (cdr term)))))
-       ((eq *cap-sigma-sym* (car term))
+       ((sig-sym? (car term))
         (mk-sig
          (mapcar (lambda (def) (make-instance 'entry :var (var def) :binder def))
                  (mapcar #'to-def (cdr term)))))
-       ((eq *pi-sym* (car term))
+       ((proj-sym? (car term))
         (mk-proj (get-var (caddr term)) (to-ast (cadr term))))
-       ((eq *if-sym* (car term))
+       ((cond-sym? (car term))
         (mk-if (to-ast (elt term 1))
                (to-ast (elt term 2))
                (to-ast (elt term 3))))
-       ((eq *lisp-sym* (car term))
+       ((lisp-sym? (car term))
         (mk-lisp (to-ast (elt term 1)) (elt term 3)))
 
        ;; Types
-       ((eq *native-sym* (car term))
+       ((native-sym? (car term))
         (mk-native (cadr term)))
        ((eq *forall-sym* (car term))
         (mk-abstraction term #'mk-∀))
@@ -185,9 +236,14 @@ that infix operations are moved prefix. For example '(2 + a) is converted to
          (finally (return (proc-head vals))))))
     (t term)))
 
+;; module header output:
+;; (import
+;;   (module.submodule._
+;;    math.(x y z)))
+;; 
+;; (:imports
+;;   (module submodule :wildcard)
+;;   (math (x y z)))
 
-(defun module-header (term)
-  "Parse a module header"
-  (flet ((parse-import-list (import-list)))
 
-  ))
+

@@ -1,5 +1,8 @@
 (module console
-  (import io unit text)
+  (import 
+    io.(…)
+    unit.(…) 
+    text.(…))
   (export print readLine))
 
 (print ◂ Text → IO Unit)

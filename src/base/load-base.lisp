@@ -36,6 +36,7 @@ package for use in other projects/packages."
                 (sym "bool")
                 (sym "int")
                 (sym "float")
+                ;(sym "num")
 
                 (sym "text")
 
@@ -49,6 +50,7 @@ package for use in other projects/packages."
     (load-base-module (sym "int") "num/int" base)
     (load-base-module (sym "float") "num/float" base)
     (load-base-module (sym "unit") "num/unit" base)
+    ;(load-base-module (sym "num") "num/num" base)
 
     (load-base-module (sym "text") "data/text" base)
 
