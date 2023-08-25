@@ -1,7 +1,5 @@
 (in-package :opal)
 
-
-
 ;; Module/Package system
 ;; Inspired by Ocaml
 
@@ -115,9 +113,41 @@ modular recompilation. "))
        ;; if a module re-exports an imported value, then appropriate definitions
        ;; are inserted in at the end of the buffer 
        ;; (note: also update the signature!)
-       (check-exports (module)
-         ;; TODO: finish me!
-         module)
+       (ensure-exports (module env ctx)
+         (iter 
+           (for field in (al:lookup :export-list module))
+           (with type = (al:lookup :type module))
+           (with val = (al:lookup :typed-ast module))
+
+                (unless (and (get-field type field) (get-field val field))
+                  ;; The field is not defined in this module, so we must check
+                  ;; if this value was imported. If if yes, then modify the type
+                  ;; & typed ast to match. If no, then raise an error.  
+                  (if (and (lookup field env) (ctx:lookup field ctx))
+                      (progn
+                        (collect (mk-decl field (lookup field env))
+                          into pass-types)
+                        (collect (mk-def field (ctx:lookup field ctx))
+                          into pass-values))
+                      (error (format nil "can't find export: ~A" field))))
+
+                (finally
+                 (return
+                   (->> module
+                        (al:insert :type (update-sig type pass-types))
+                        (al:insert :typed-ast (update-sct val pass-values)))))))
+
+       (update-sig (signature new-fields)
+         (mk-sig
+          (append
+           (entries signature)
+           (li:map (lambda (dec) (mk-entry (var dec) dec)) new-fields))))
+
+       (update-sct (structure new-fields)
+         (mk-struct
+          (append
+           (entries structure)
+           (li:map (lambda (def) (mk-entry (var def) def)) new-fields))))
 
        (reify-module (module env)
          (al:insert 
@@ -139,21 +169,53 @@ modular recompilation. "))
       (-> module-raw
           (parse-module)
           (type-module env)
-          (check-exports)
+          (ensure-exports env ctx)
+          ((lambda (m)
+            m))
           (reify-module ctx)))))
 
 (declaim (ftype (function (hash-table list) env) gen-env))
 (defun gen-env (available-modules module-raw)
   (make-env-from
-   (process-import-declaration available-modules module-raw #'module-export-types)))
+   (process-import-declaration
+    available-modules
+    module-raw
+    (lambda (type val)
+      (ecase type
+        (:module (module-export-types val))
+        (:atom (atom-export-types val))))
+    (lambda (module) (signature module))
+    (lambda (atom) (al:lookup :type atom)))))
 
 (declaim (ftype (function (hash-table list) ctx:context) gen-ctx))
 (defun gen-ctx (available-modules module-raw)
   (ctx:make-from 
-   (process-import-declaration available-modules module-raw #'module-export-values)))
+   (process-import-declaration
+    available-modules
+    module-raw
+    (lambda (type val)
+      (ecase type
+        (:module (module-export-values val))
+        (:atom (li:map
+                (lambda (entry)
+                  (list (var entry)
+                        (al:make 
+                         (:code . `(gethash (quote ,(var entry))
+                                            ,(al:lookup :code val)))
+                         (:type . (ann (binder entry))))))
+                (entries (al:lookup :type val))))))
+    (lambda (module) (lisp-val module))
+    (lambda (atom) (al:lookup :code atom)))))
 
-(declaim (ftype (function (hash-table list (function (t) t)) env) process-import-declaration))
-(defun process-import-declaration (available-modules module-raw contents-getter)
+(declaim (ftype (function (hash-table list
+                                      (function (symbol t) t)
+                                      (function (t) t)
+                                      (function (t) t))
+                          hash-table)
+                process-import-declaration))
+(defun process-import-declaration
+    (available-modules module-raw contents-getter
+     process-module-val process-atom-val)
   "Generate the type-checking environment for a particular module."
   (let* ((imports (al:lookup :import-list module-raw))
 
@@ -173,9 +235,11 @@ modular recompilation. "))
            (lambda (import-table)
              (iter (for (type name val) in import-table)
                (with out = (ht:empty))
-               (declare (ignorable type))
 
-               (setf (gethash name out) val)
+               (ecase type
+                 (:atom (setf (gethash name out) (funcall process-atom-val val)))
+                 (:module (setf (gethash name out) (funcall process-module-val val))))
+               
                (finally (return out)))))
 
          ;; generate list of imported types
@@ -196,26 +260,30 @@ modular recompilation. "))
                  (setf
                   import-table
                   (iter (for (type nm val) in import-table)
-                    (for types = 
-                          (ecase type
-                            (:atom (error "cannot import from atom (WIP)"))
-                            (:module (funcall contents-getter val))))
+                    (for types = (funcall contents-getter type val))
                     (declare (ignorable nm))
 
                     (etypecase elt
                       (list
-                       (return
-                        (iter (for import-name in elt)
-                          (if (pkg-wildcard-sym? import-name)
-                              (return (li:map (curry #'cons :atom) types))
-                              (collect (cons :atom (assoc import-name
-                                                          types)))))))
+                       (collect 
+                           (iter (for import-name in elt)
+                             (if (pkg-wildcard-sym? import-name)
+                                 (return (li:map (curry #'cons :atom) types))
+                                 (collect (cons :atom (assoc import-name types)))))
+                       into new-table))
                       (symbol
                        (if (pkg-wildcard-sym? elt)
-                              (return (li:map (curry #'cons :atom) types))
-                              (collect (cons :atom (assoc elt types))))))))
+                           (collect (li:map (curry #'cons :atom) types)
+                             into new-table)
+                           (collect (list (cons :atom (assoc elt types)))
+                             into new-table))))
 
-                 (finally (return (funcall process import-table))))))))
+                    (finally
+                     (return (li:join new-table)))))
+
+                 (finally
+                  (return (funcall process import-table))))))))
+
     ;; for now, assume imports are a list of symbols which designate packages
     (iter (for import-decl in imports)
 
@@ -235,7 +303,7 @@ modular recompilation. "))
        (return imported-values)))))
 
 (defun module-export-types (module)
-  " get all exported types from a module as a list ((name type) (name type) ...)
+  "Get all exported types from a module as a list ((name type) (name type) ...)
 we assume no collisions (this should be checked by the exporting module)"
 
   (iter (for symbol in (exports module))
@@ -243,8 +311,36 @@ we assume no collisions (this should be checked by the exporting module)"
       (typecase tipe
         (kind
          (collect
-             (list symbol (cons tipe (get-field (internal-struct module) symbol)))))
-        (t (collect (list symbol tipe)))))))
+             (list symbol
+                   (al:make
+                    (:type . (cons tipe
+                                 (get-field (internal-struct module) symbol)))
+                    (:val . (get-field (internal-struct module) symbol))))))
+         (t (collect
+                (list symbol
+                      (al:make
+                       (:type . tipe)
+                       (:val . (get-field (internal-struct module) symbol))))))))))
+
+(defun atom-export-types (atom)
+  "Get all exported types from an atom (signature) as a list ((name type) (name
+  type) ...). Any non-sealed types are exported as (name (kind . type)), while
+  sealed types are exported as (name . kind)."
+  (iter (for entry in (entries (al:lookup :type atom)))
+    (let ((type (get-field (al:lookup :type atom) (var entry))))
+      (typecase type
+        (kind
+         (collect
+             (list (var entry)
+                   (al:make 
+                    (:type . (cons type (get-field (al:lookup :val atom) (var entry))))
+                    (:val . (get-field (al:lookup :val atom) (var entry)))))))
+        (t (collect
+               (list (var entry)
+                     (al:make
+                      (:type . type)
+                      (:val . (get-field (al:lookup :val atom) (var entry)))))))))))
+
 
 (defun module-export-values (module)
   "get all export values (for code-generation) from a module as a list
@@ -252,7 +348,10 @@ we assume no collisions (this should be checked by the exporting module)"
   the module is generated)" 
   (iter (for symbol in (exports module))
     (collect
-        (list symbol `(gethash (quote ,symbol) (lisp-val ,module))))))
+        (list symbol
+              (al:make
+               (:code . `(gethash (quote ,symbol) (lisp-val ,module)))
+               (:type . (get-field (signature module) symbol)))))))
 
 
 (declaim (ftype (function (t) opal-package) get-package))

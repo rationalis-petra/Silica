@@ -18,7 +18,7 @@
              :source path
              ;; TODO: make this a function!
              :dependencies (al:lookup :import-list module-raw)
-             :signature (al:lookup :type build-output) 
+             :signature (al:lookup :type build-output)
              :internal-struct (al:lookup :typed-ast build-output)
              :lisp-val (eval (al:lookup :code build-output))
              :module-package package
@@ -32,11 +32,7 @@ package for use in other projects/packages."
                :name (sym "base")
                :exported-modules
                (list
-                (sym "unit")
-                (sym "bool")
-                (sym "int")
-                (sym "float")
-                ;(sym "num")
+                (sym "num")
 
                 (sym "text")
 
@@ -50,7 +46,7 @@ package for use in other projects/packages."
     (load-base-module (sym "int") "num/int" base)
     (load-base-module (sym "float") "num/float" base)
     (load-base-module (sym "unit") "num/unit" base)
-    ;(load-base-module (sym "num") "num/num" base)
+    (load-base-module (sym "num") "num/num" base)
 
     (load-base-module (sym "text") "data/text" base)
 

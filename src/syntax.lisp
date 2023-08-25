@@ -364,7 +364,11 @@
   (:method ((term signature) field)
     (iter (for entry in (entries term))
       (when (eq (var entry) field)
-        (return (ann (binder entry)))))))
+        (return (ann (binder entry))))))
+
+  ;; TODO: fix me??
+  (:method ((term hash-table) field)
+    (gethash field term)))
 
 (defgeneric α= (l r &optional renamings shadowed)
   (:documentation "Predicate: return true if two terms equal up to α-renaming")

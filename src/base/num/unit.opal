@@ -1,8 +1,8 @@
 (module unit
  (export Unit unit))
 
-(Unit ◂ τ)
+(Unit ⮜ τ)
 (Unit ≜ native ⟦cl:t⟧)
 
-(unit ◂ Unit)
+(unit ⮜ Unit)
 (unit ≜ lisp Unit () ⟦cl:t⟧)

@@ -353,13 +353,13 @@
              ;; Update locals
              (typecase new-ty
                ;; if current definition defines a term, check if it's been declared
-               ;; if not, add it into the locals
+               ;; if not, add it into the local bindings
                (opal-type
                 (unless prev-decl
                   (setf locals (bind (var binder) new-ty locals))))
                (kind
                 ;; if current definition defines a type, add it's kind and
-                ;; value into local
+                ;; value into local bindings
                 (if prev-decl
                     (setf locals (bind-existing-val (var binder) new-val locals))
                     (setf locals (bind-2 (var binder) new-ty new-val locals)))))
@@ -367,6 +367,7 @@
              (collect (or (when prev-decl (binder prev-decl))
                           (mk-decl (var binder) new-ty))
                into out-decls)
+
              (collect (or (when prev-decl (binder prev-decl))
                           (mk-decl (var binder) new-ty))
                into out-entries)
@@ -378,12 +379,13 @@
         (finally (return
                    (cons
                     (mk-sig (li:map
-                             (lambda (x)
-                               (mk-entry (var x) x))
+                                ;; TODO: get the variable from elsewhere.
+                             (lambda (x) (mk-entry (var x) x))
                              out-decls))
                     (mk-struct (li:map
-                                (lambda (x)
-                                  (mk-entry (var x) x))
+                                ;; TODO: get the variable from elsewhere -
+                                ;; perhaps the signature?
+                                (lambda (x) (mk-entry (var x) x))
                                 out-entries))))))))
   (:method ((term conditional) env)
     (let* ((test (check (test term) (mk-native 'boolean) env))

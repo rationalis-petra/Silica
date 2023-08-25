@@ -23,6 +23,7 @@
    :map
    :each
    :merge
+   :join
    :<>))
 (in-package :containers/list)
 

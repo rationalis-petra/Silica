@@ -1,5 +1,9 @@
 (in-package :opal)
 
+;; (defpackage :env
+;;   (:use :cl)
+;;   (:export :lookup :bind :make-from :bind-2 :join))
+
 (defstruct env base vars vals)
 
 (defun lookup-base (var table)
