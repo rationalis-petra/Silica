@@ -1,0 +1,27 @@
+
+(module array
+  (export
+   Array
+   acons
+   anil
+   ))
+
+(Array ◂ τ → τ)
+(Array ≜ λ α. native (α) ⟦sigil/array:type sym::|α|⟧)
+
+
+⍝ (using arr-monoid)
+(arr-monoid ◂ ∀ α. Monoid (Array α))
+(arr-monoid ≜ σ
+  (empty ≜ lisp (Array α) () ⟦sigil/array:+empty+⟧)
+
+  (◇ ≜ Λ α. λ x y.
+    lisp (Array α) (x y)
+      ⟦(sigil/array:append sym::|x| sym::|y|)⟧))
+
+(acons ◂ ∀ α. α → Array α → Array α)
+(acons ⟨α⟩ v arr ≜ lisp (Array α) (v arr)
+  ⟦(sigil/array:acons v arr)⟧)
+
+(anil ◂ ∀ α. Array α)
+(anil ⟨α⟩ ≜ lisp (Array α) () ⟦(OPPAL/ARRAY:ANIL)⟧)

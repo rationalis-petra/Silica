@@ -1,0 +1,8 @@
+
+;; quartz file (lisp) 
+
+(lib "silc"
+  :requires ("base")
+  :exposes ("silc")
+  :components
+  ((file "silc")))
