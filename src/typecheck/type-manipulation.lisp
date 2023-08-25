@@ -1,4 +1,4 @@
-(in-package :opal)
+(in-package :sigil)
 
 ;; (defpackage :env
 ;;   (:use :cl)
@@ -19,7 +19,7 @@
       (t res))))
 
 ;; Bind var to ty in env.
-(declaim (ftype (function (symbol (or opal-type kind) env) env) bind))
+(declaim (ftype (function (symbol (or sigil-type kind) env) env) bind))
 (defun bind (var ty env)
   (make-env
    :base (env-base env)
@@ -55,7 +55,7 @@
    :vars (acons var ty (env-vars env))
    :vals (acons var val (env-vals env))))
 
-(declaim (ftype (function (symbol env) (or null opal-type kind)) lookup))
+(declaim (ftype (function (symbol env) (or null sigil-type kind)) lookup))
 (defun lookup (var env)
   (or (al:lookup var (env-vars env))
       (lookup-base var (env-base env))
@@ -165,7 +165,7 @@
   (:method ((type forall))
     (mk-∀ (var type) (var-kind type)
           (ty-reduce (body type))))
-  (:method ((type opal-lambda))
+  (:method ((type sigil-lambda))
     (mk-tλ (var type) (var-type type)
           (ty-reduce (body type))))
   (:method ((type type-lambda))
@@ -181,7 +181,7 @@
   (:method ((type tapp))
     (let ((left-v2 (ty-reduce (left type))))
       (typecase left-v2
-        ((or type-lambda opal-lambda)
+        ((or type-lambda sigil-lambda)
          (ty-subst (body left-v2)
                    (acons (var left-v2)
                           (ty-reduce (right type))

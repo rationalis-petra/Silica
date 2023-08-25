@@ -1,4 +1,4 @@
-(defpackage :opal/types
+(defpackage :sigil/types
   (:use :cl))
 
-;; Opal native types. 
+;; Sigil native types. 

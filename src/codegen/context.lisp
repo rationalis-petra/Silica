@@ -1,4 +1,4 @@
-(defpackage opal/context
+(defpackage sigil/context
   (:use :cl :iter :alexandria)
   (:nicknames :ctx)
   (:export

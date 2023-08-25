@@ -1,6 +1,6 @@
-(in-package :opal)
+(in-package :sigil)
 
-(defvar *opal-modules* (make-hash-table))
+(defvar *sigil-modules* (make-hash-table))
 
 
 
@@ -9,7 +9,7 @@
   appropriate semantics.")
   (:method ((term lisp-form) ctx)
     (form term))
-  (:method ((term opal-lambda) ctx)
+  (:method ((term sigil-lambda) ctx)
     "Reify a lambda term (λ x.e). These are converted into CL lambdas"
     `(lambda (,(var term))
        ,(reify (body term) (ctx:hide (var term) ctx))))
@@ -37,23 +37,23 @@ it to a funcall."
     (typecase (right term)
       (term
        `(funcall ,(reify (left term) ctx) ,(reify (right term) ctx)))
-      (opal-type
+      (sigil-type
        (reify (left term) ctx))))
 
 
-  (:method ((term opal-struct) ctx)
+  (:method ((term sigil-struct) ctx)
     "Reify a structure (struct (x₁ ≜ e₁) .. (xₙ ≜ eₙ)). We do this by
 constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (xₙ = eₙ)))"
     (labels
         ((mk-binds (defs)
            (iter (for def in defs)
-             (when (typep def 'opal-definition)
+             (when (typep def 'sigil-definition)
                    (with current-ctx = ctx)
 
                (setf current-ctx (ctx:hide (var def) current-ctx))
                (collect
                    (list (var def) ;; TODO: replace this var with the entry var!
-                         (if (or (typep (val def) 'opal-lambda)
+                         (if (or (typep (val def) 'sigil-lambda)
                                  (typep (val def) 'term-lambda))
                            ;; a function; is recursive!
                            (reify-named-lambda (var def) (val def) ctx)
@@ -62,11 +62,11 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
                            (reify (val def) ctx)))))))
          (get-vars (entries)
            (iter (for entry in entries)
-             (when (typep (binder entry) 'opal-definition)
+             (when (typep (binder entry) 'sigil-definition)
                (collect (var entry)))))
          (mk-hashmap (vars)
-           ;; We can safely use a non-hygenic macro, as all opal code will only
-           ;; contain symbols in the *opal-symbols* package.
+           ;; We can safely use a non-hygenic macro, as all sigil code will only
+           ;; contain symbols in the *sigil-symbols* package.
            `(let ((hashmap (make-hash-table :test #'eq)))
               ,@(iter (for var in vars)
                   (collect `(setf (gethash (quote ,var) hashmap) ,var)))
@@ -78,7 +78,7 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
 
   (:method ((term projection) ctx)
     "Reify a field access (s.f). Do do this by converting it to (gethash 'f s)"
-    `(gethash (quote ,(field term)) ,(reify (opal-struct term) ctx)))
+    `(gethash (quote ,(field term)) ,(reify (sigil-struct term) ctx)))
 
   (:method ((term conditional) ctx)
     "Reify a conditional (if e1 e2 e3). Do do this by converting it to the
@@ -92,7 +92,7 @@ common lisp (if e1 e2 e3)"
       val
       term))
 
-  (:method ((term opal-literal) ctx) (val term))
+  (:method ((term sigil-literal) ctx) (val term))
   (:method (term ctx) term))
 
 (defun fix (f)

@@ -1,11 +1,11 @@
-(defpackage opal
+(defpackage sigil
   (:use :cl :trivia :iter :alexandria :lang-extensions)
   (:export
-   ;; get opal values from CL
+   ;; get sigil values from CL
    :run-main
-   :get-opal-val
+   :get-sigil-val
 
-   :*opal-modules*
+   :*sigil-modules*
 
    ;; Readtables
    :classic

@@ -18,9 +18,9 @@
   (λ symbol (? type) term)
   )
 
-(def-rule judge (opal-term opal-type env)
+(def-rule judge (sigil-term sigil-type env)
   :transformers
-  (:term opal-term))
+  (:term sigil-term))
 
 (inference judge app
     ;; prerequisites
@@ -53,9 +53,9 @@
   )
 
 
-(defrule kind (opal-type opal-kind env)
+(defrule kind (sigil-type sigil-kind env)
   :transformers
-  (:type opal-type ))
+  (:type sigil-type ))
 
 (def-axiom kind (native _))
 

@@ -1,19 +1,19 @@
-(in-package :opal)
+(in-package :sigil)
 
 
 ;; Modules (toplevel constructs)
 (defclass module ()
   ((opl-imports)
    (opl-exports)
-   (opal-struct)))
+   (sigil-struct)))
 
 ;; 'untyped' terms; 
-(defclass var (term opal-type)
+(defclass var (term sigil-type)
   ((var
     :type symbol
     :reader var
     :initarg :var)))
-(defclass app (term opal-type)
+(defclass app (term sigil-type)
   ((left
     :type term
     :reader left
@@ -22,13 +22,13 @@
     :type (or term type)
     :reader right
     :initarg :right)))
-(defclass opal-lambda (term opal-type)
+(defclass sigil-lambda (term sigil-type)
   ((var
     :type symbol
     :reader var
     :initarg :var)
    (var-type
-    :type (or opal-type kind)
+    :type (or sigil-type kind)
     :reader var-type
     :initarg :var-type)
    (body
@@ -44,7 +44,7 @@
     :reader var
     :initarg :var)
    (binder
-    :type (or opal-declaration opal-definition)
+    :type (or sigil-declaration sigil-definition)
     :reader binder
     :initarg :binder)))
 
@@ -62,7 +62,7 @@
     :initarg :name))
   (:documentation "A label is like a symbol, but it refers to a value in an
   imported module, allowing for modules to be renamed"))
-;; (defclass term-app (term opal-type)
+;; (defclass term-app (term sigil-type)
 ;;   ((left
 ;;     :type term
 ;;     :reader left
@@ -77,20 +77,20 @@
     :reader form
     :initarg :form)
    (form-type
-    :type opal-type
+    :type sigil-type
     :reader form-type
     :initarg :form-type)
    (bound-vars
     :type list
     :reader bound-vars
     :initarg :bound-vars)))
-(defclass opal-literal (term)
+(defclass sigil-literal (term)
   ((val
     :type t
     :reader val
     :initarg :val)
    (val-type
-    :type opal-type
+    :type sigil-type
     :reader val-type
     :initarg :val-type)))
 ;; Lambda Related
@@ -100,7 +100,7 @@
     :reader var
     :initarg :var)
    (var-type
-    :type (or opal-type kind)
+    :type (or sigil-type kind)
     :reader var-type
     :initarg :var-type)
    (body
@@ -121,15 +121,15 @@
     :reader body
     :initarg :body)))
 ;; Structure related
-(defclass opal-struct (term)
+(defclass sigil-struct (term)
   ((entries
     :type list
     :reader entries
     :initarg :entries)))
 (defclass projection (term)
-  ((opal-struct
+  ((sigil-struct
     :type term
-    :reader opal-struct
+    :reader sigil-struct
     :initarg :structure)
    (field
     :type symbol
@@ -138,7 +138,7 @@
 ;; Recursive datatype-related
 (defclass inductive-ctor (term)
   ((val-type
-    :type opal-type
+    :type sigil-type
     :reader val-type
     :initarg :val-type)
    (name
@@ -171,36 +171,36 @@
     :initarg :if-false)))
 
 
-(defclass opal-type () ())
-(defclass type-var (opal-type)
+(defclass sigil-type () ())
+(defclass type-var (sigil-type)
   ((var
     :type symbol
     :reader var
     :initarg :var)))
-(defclass native-type (opal-type)
+(defclass native-type (sigil-type)
   ((native-type
     :type t
     :reader native-type
     :initarg :native-type)))
-(defclass arrow (opal-type)
+(defclass arrow (sigil-type)
   ((from
-    :type opal-type
+    :type sigil-type
     :reader from
     :initarg :from)
    (to
-    :type opal-type
+    :type sigil-type
     :reader to
     :initarg :to)))
-(defclass tapp (opal-type)
+(defclass tapp (sigil-type)
   ((left
-    :type opal-type
+    :type sigil-type
     :reader left
     :initarg :left)
    (right
-    :type opal-type
+    :type sigil-type
     :reader right
     :initarg :right)))
-(defclass forall (opal-type)
+(defclass forall (sigil-type)
   ((var
     :type symbol
     :reader var
@@ -211,7 +211,7 @@
     :initarg :var-kind
     :initform (mk-kind))
    (body
-    :type opal-type
+    :type sigil-type
     :reader body
     :initarg :body)))
 (defclass type-lambda (term)
@@ -227,12 +227,12 @@
     :type term
     :reader body
     :initarg :body)))
-(defclass signature (opal-type)
+(defclass signature (sigil-type)
   ((entries
     :type list
     :reader entries
     :initarg :entries)))
-(defclass inductive-type (opal-type)
+(defclass inductive-type (sigil-type)
   ((kind
     :type kind
     :reader kind
@@ -257,7 +257,7 @@
 
 ;; Untyped declarations and definitions
 ;; these are replaced with either type or val declarations or definitions during typechecking.
-(defclass opal-declaration ()
+(defclass sigil-declaration ()
   ((var
     :type symbol
     :reader var
@@ -266,7 +266,7 @@
     :type t
     :reader ann
     :initarg :ann)))
-(defclass opal-definition ()
+(defclass sigil-definition ()
   ((var
     :type symbol
     :reader var
@@ -278,9 +278,9 @@
 
 ;; Declaration constructors
 (defun mk-decl (var ann)
-  (make-instance 'opal-declaration :var var :ann ann))
+  (make-instance 'sigil-declaration :var var :ann ann))
 (defun mk-def (var val)
-  (make-instance 'opal-definition :var var :val val))
+  (make-instance 'sigil-definition :var var :val val))
 (defun mk-entry (var bind)
   (make-instance 'entry :var var :binder bind))
 
@@ -310,9 +310,9 @@
   (make-instance 'lisp-form :form-type type :form form))
 (defun mk-λ (var snd &optional body)
   (if body
-      (make-instance 'opal-lambda
+      (make-instance 'sigil-lambda
                      :var var :var-type snd :body body)
-      (make-instance 'opal-lambda :var var :body snd)))
+      (make-instance 'sigil-lambda :var var :body snd)))
 (defun mk-tλ (var snd &optional body)
   (if body
       (make-instance 'type-lambda
@@ -336,11 +336,11 @@
 (defun mk-app (left right)
   (make-instance 'app :left left :right right))
 (defun mk-struct (defs)
-  (make-instance 'opal-struct :entries defs)) 
+  (make-instance 'sigil-struct :entries defs)) 
 (defun mk-proj (field struct)
   (make-instance 'projection :structure struct :field field))
 (defun mk-val (val)
-  (make-instance 'opal-literal :val val))
+  (make-instance 'sigil-literal :val val))
 (defun mk-if (test if-true if-false)
   (make-instance 'conditional :test test
                               :if-true if-true
@@ -350,15 +350,15 @@
   (:method ((term var)) t)
   (:method ((term type-var)) t)
   (:method ((term term-var)) t)
-  (:method ((term opal-literal)) t)
+  (:method ((term sigil-literal)) t)
   (:method ((term kind-type)) t)
   (:method (term) nil))
 
 (defgeneric get-field (term field)
-  (:method ((term opal-struct) field)
+  (:method ((term sigil-struct) field)
     (iter (for elt in (entries term))
       (when (and (eq (var elt) field)
-                 (typep (binder elt) 'opal-definition))
+                 (typep (binder elt) 'sigil-definition))
         (return (val (binder elt))))))
 
   (:method ((term signature) field)
@@ -373,11 +373,11 @@
 (defgeneric α= (l r &optional renamings shadowed)
   (:documentation "Predicate: return true if two terms equal up to α-renaming")
   ;; Terms 
-  (:method ((l opal-literal) (r opal-literal) &optional renamings shadowed)
+  (:method ((l sigil-literal) (r sigil-literal) &optional renamings shadowed)
     (declare (ignore renamings shadowed))
     (equal (val l) (val r)))
 
-  (:method ((l opal-lambda) (r opal-lambda) &optional renamings shadowed)
+  (:method ((l sigil-lambda) (r sigil-lambda) &optional renamings shadowed)
     (and 
      (or (and (not (slot-boundp l 'var-type)) (not (slot-boundp r 'var-type)))
          (α= (var-type l) (var-type r)))
@@ -414,7 +414,7 @@
          (cons (cons (var l) (car shadowed))
                (cons (var l) (car shadowed))))))
 
-  (:method ((l opal-struct) (r opal-struct) &optional renamings shadowed)
+  (:method ((l sigil-struct) (r sigil-struct) &optional renamings shadowed)
     (and 
      (iter (for elt-1 in (entries l))
            (for elt-2 in (entries r))
@@ -422,9 +422,9 @@
         (and (eq (var elt-1) (var elt-2))
              ;; todo: shadow variable bindings?
              (typecase (cons (binder elt-1) (binder elt-2))
-               ((cons opal-declaration opal-declaration)
+               ((cons sigil-declaration sigil-declaration)
                 (α= (binder elt-1) (binder elt-2) renamings shadowed))
-               ((cons opal-definition opal-definition)
+               ((cons sigil-definition sigil-definition)
                 (α= (binder elt-1) (binder elt-2) renamings shadowed))))))
      (= (length (entries l)) (length (entries r)))))
 
@@ -482,14 +482,14 @@
      (= (length (entries l)) (length (entries r)))))
 
   ;; Equality of defs/decls
-  (:method ((l opal-definition) (r opal-definition)
+  (:method ((l sigil-definition) (r sigil-definition)
             &optional renamings shadowed)
     (α= (val l) (val r)
         (acons (var l) (var r) renamings)
         (cons (cons (var l) (car shadowed))
               (cons (var r) (cdr shadowed)))))
 
-  (:method ((l opal-declaration) (r opal-declaration)
+  (:method ((l sigil-declaration) (r sigil-declaration)
             &optional renamings shadowed)
     (α= (ann l) (ann r)
         (acons (var l) (var r) renamings)
@@ -565,14 +565,14 @@
      (= (length (entries l)) (length (entries r)))))
 
   ;; Equality of defs/decls
-  (:method ((l opal-definition) (r opal-definition)
+  (:method ((l sigil-definition) (r sigil-definition)
             &optional renamings shadowed)
     (α<= (val l) (val r)
         (acons (var l) (var r) renamings)
         (cons (cons (var l) (car shadowed))
               (cons (var r) (cdr shadowed)))))
 
-  (:method ((l opal-declaration) (r opal-declaration)
+  (:method ((l sigil-declaration) (r sigil-declaration)
             &optional renamings shadowed)
     (α<= (ann l) (ann r)
         (acons (var l) (var r) renamings)
@@ -583,11 +583,11 @@
     (α= l r renamings shadowed))
 
   ;; otherwise: false
-  (:method ((l opal-type) (r opal-type) &optional renamings shadowed)
+  (:method ((l sigil-type) (r sigil-type) &optional renamings shadowed)
     (declare (ignore l r renamings shadowed))
     nil))
 
-(declaim (ftype (function ((or term kind opal-type)
+(declaim (ftype (function ((or term kind sigil-type)
                            &optional (function (t) boolean))
                           string)
                 mparen))
@@ -600,7 +600,7 @@
 (defgeneric show (val)
   (:documentation "Pseudo pretty-print method")
 
-  (:method ((val opal-literal))
+  (:method ((val sigil-literal))
     (format nil "~A" (val val)))
 
   (:method ((val lisp-form))
@@ -620,7 +620,7 @@
       (write-string (mparen (right val)) stream)
       (get-output-stream-string stream)))
 
-  (:method ((val opal-lambda))
+  (:method ((val sigil-lambda))
     (format nil "λ ~A. ~A" (var val) (show (body val))))
   (:method ((val type-lambda))
     (format nil "tλ ~A. ~A" (var val) (show (body val))))
@@ -630,17 +630,17 @@
   (:method ((val abstract))
     (format nil "Λ ~A. ~A" (var val) (show (body val))))
 
-  (:method ((val opal-struct))
+  (:method ((val sigil-struct))
     (let ((stream (make-string-output-stream)))
       (write-string "(σ" stream )
       (iter (for entry in (entries val))
         (typecase (binder entry)
-          (opal-declaration
+          (sigil-declaration
            (format stream " (~A(~A) ◂ ~A)"
                    (var entry)
                    (var (binder entry))
                    (show (ann (binder entry)))))
-          (opal-definition
+          (sigil-definition
            (format stream " (~A(~A) ≜ ~A)"
                    (var entry)
                    (var (binder entry))
@@ -656,7 +656,7 @@
 
   (:method ((val projection))
     (format nil "~A⋅~A"
-            (mparen (opal-struct val))
+            (mparen (sigil-struct val))
             (field val)))
 
 
@@ -697,10 +697,10 @@
   (:method ((kind kind-arrow))
     (format nil "(~A → ~A)" (show (from kind)) (show (to kind))))
 
-  (:method ((decl opal-declaration))
+  (:method ((decl sigil-declaration))
     (format nil "(~A ◂ ~A)"  (var decl) (show (ann decl))))
 
-  (:method ((defn opal-definition))
+  (:method ((defn sigil-definition))
     (format nil "(~A ≜ ~A)"  (var defn) (show (val defn))))
 
   (:method (unknown)
@@ -710,15 +710,15 @@
 (defmethod print-object ((term term) stream)
   (format stream "#<term ~A>" (show term)))
 
-(defmethod print-object ((type opal-type) stream)
+(defmethod print-object ((type sigil-type) stream)
   (format stream "#<type ~A>" (show type)))
 
 (defmethod print-object ((kind kind) stream)
   (format stream "#<kind ~A>" (show kind)))
 
-(defmethod print-object ((decl opal-declaration) stream)
+(defmethod print-object ((decl sigil-declaration) stream)
   (format stream "#<decl ~A>" (show decl)))
 
-(defmethod print-object ((def opal-definition) stream)
+(defmethod print-object ((def sigil-definition) stream)
   (format stream "#<def ~A>" (show def)))
 

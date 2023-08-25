@@ -1,18 +1,18 @@
-(defpackage :opal/util
+(defpackage :sigil/util
   (:use :cl :iterate)
   (:export :app-curry))
 
-(in-package :opal/util)
+(in-package :sigil/util)
 
 (defmacro app-curry (func &rest args)
   (iter (for arg in args)
     (accumulate arg by (lambda (arg body) `(funcall ,body ,arg))
                 initial-value func)))
 
-(in-package :opal)
+(in-package :sigil)
 
-(declaim (ftype (function (string string &rest list) t) opal-val))
-(defun opal-val (package module &rest path)
+(declaim (ftype (function (string string &rest list) t) sigil-val))
+(defun sigil-val (package module &rest path)
   (let* ((pkg (gethash (sym package) *packages*))
          (module (gethash (sym module) (modules pkg))))
     (iter (for name in path)
@@ -21,7 +21,7 @@
       (finally (return val)))))
 
 (defun run-main (&rest path)
-  (funcall (apply #'opal-val (append path '("main"))) t))
+  (funcall (apply #'sigil-val (append path '("main"))) t))
 
 (defparameter *diagnostic* nil)
 
@@ -44,25 +44,25 @@
       (format t "expr: ~A~%" expr))
     expr))
 
-(named-readtables:defreadtable opal:classic
+(named-readtables:defreadtable sigil:classic
   (:merge :standard)
   (:case :preserve))
 
-(in-package :opal-user)
+(in-package :sigil-user)
 
 ;; TODO: add typechecking...
 (cl:defmacro |module| (name cl:&body defs)
-  `(cl:setf (cl:gethash (cl:quote ,name) opal:*opal-modules*)
-            ,(opal::process-module name () () defs)))
+  `(cl:setf (cl:gethash (cl:quote ,name) sigil:*sigil-modules*)
+            ,(sigil::process-module name () () defs)))
 
-  ;; `(cl:setf (cl:gethash (cl:quote ,name) opal:*opal-modules*)
-  ;;           ,(opal:reify
-  ;;             (opal::mk-struct (cl:mapcar #'opal:to-def defs))
+  ;; `(cl:setf (cl:gethash (cl:quote ,name) sigil:*sigil-modules*)
+  ;;           ,(sigil:reify
+  ;;             (sigil::mk-struct (cl:mapcar #'sigil:to-def defs))
   ;;             cl:nil)))
 
 (cl:unless (cl:boundp (cl:quote |τ|))
   (cl:defconstant |τ|
-    (cl:make-instance 'opal:kind-type)))
+    (cl:make-instance 'sigil:kind-type)))
 
 ;; Grammar
 ;; infix operators → all same fixity 
@@ -70,4 +70,4 @@
 ;; 
 ;; 
 
-;; (defun parse-opal-lisp ())
+;; (defun parse-sigil-lisp ())

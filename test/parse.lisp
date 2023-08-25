@@ -1,4 +1,4 @@
-(in-package :opal-tests)
+(in-package :sigil-tests)
 
 (define-test parsing
   :parent all

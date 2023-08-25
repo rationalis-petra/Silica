@@ -1,12 +1,12 @@
-(in-package :opal)
+(in-package :sigil)
 
-;; Parse a lisp-style syntax tree into an Opal abstract syntax tree
+;; Parse a lisp-style syntax tree into an Sigil abstract syntax tree
 ;; 
-(defpackage :opal-symbols
-  (:nicknames :sym :opal-user)
+(defpackage :sigil-symbols
+  (:nicknames :sym :sigil-user)
   (:export "λ" "Λ" "π" "σ" "Σ" "∀" "→" "≜" "◂" "lisp"))
 
-(defun sym (name) (intern name :opal-symbols))
+(defun sym (name) (intern name :sigil-symbols))
 
 (defvar *lambda-sym* (sym "λ"))
 (defvar *arrow-sym* (sym "→"))
@@ -90,7 +90,7 @@
     (every #'special? (string val))))
 
 
-(declaim (ftype (function (list) (or opal-declaration opal-definition)) to-def))
+(declaim (ftype (function (list) (or sigil-declaration sigil-definition)) to-def))
 (defun to-def (definition)
   "Produce a definition from a boi"
   (let ((name (if (listp (cadr definition))
@@ -129,7 +129,7 @@
               (funcall func (get-var decl) body))
              (t
               (let ((decl2 (to-def decl)))
-                (assert (typep decl2 'opal-declaration))
+                (assert (typep decl2 'sigil-declaration))
                 (funcall func (var decl2) (ann decl2) body))))))
   (match (cadr term)
     ((type symbol) (funcall abstractor (cadr term) (to-ast (caddr term))))
@@ -139,7 +139,7 @@
                    (reverse (cadr term))))))))
 
 (defun to-ast (term)
-  "Take a raw concrete ast (represented as a list), and convert it into an opal
+  "Take a raw concrete ast (represented as a list), and convert it into an sigil
 syntax-tree."
   (match term
     ((type keyword)
@@ -183,7 +183,7 @@ syntax-tree."
         (let ((left (to-ast (cadr term)))
               (right (to-ast (caddr term))))
           (typecase (cons left right)
-            ((cons opal-type opal-type) (mk-arr left right))
+            ((cons sigil-type sigil-type) (mk-arr left right))
             ((cons kind kind) (mk-karr left right))
             (t (error "→ expects either two kinds or two types")))))
        (t

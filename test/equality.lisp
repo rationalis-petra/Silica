@@ -1,7 +1,7 @@
-(in-package :opal-tests)
+(in-package :sigil-tests)
 
 (defparameter int-type (make-instance
-                        'opal::native-type
+                        'sigil::native-type
                         :native-type 'integer))
 
 (define-test equality
@@ -23,7 +23,7 @@
         (mk-∀ 'b (mk-var 'b)))
 
     (is α= int-type
-        (make-instance 'opal::native-type
+        (make-instance 'sigil::native-type
                        :native-type 'integer))
     (is α=
         (mk-arr int-type int-type)
@@ -77,7 +77,7 @@
         (mk-∀ 'b (mk-var 'b)))
 
     (isnt α= int-type
-        (make-instance 'opal::native-type
+        (make-instance 'sigil::native-type
                        :native-type 'symbol))
 
     (isnt α=

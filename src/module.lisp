@@ -1,11 +1,11 @@
-(in-package :opal)
+(in-package :sigil)
 
 ;; Module/Package system
 ;; Inspired by Ocaml
 
 (defvar *packages* (ht:empty))
 
-(defclass opal-package ()
+(defclass sigil-package ()
   ((name
     :type string
     :reader name
@@ -73,7 +73,7 @@
     :initarg :exports
     :initform nil))
   (:documentation "The Module class represents a discrete unit of code within
-the opal programming Language. At the language-level, modules look identical
+the sigil programming Language. At the language-level, modules look identical
 to structures.
 
 However, they require distinct implementations, to facilitate build-systems and
@@ -86,7 +86,7 @@ modular recompilation. "))
 
 
 ;; Functions to get information from 'raw' (read) syntax trees.
-(declaim (ftype (function (opal-package list) module) build-module))
+(declaim (ftype (function (sigil-package list) module) build-module))
 (defun build-module (package module-raw)
   (labels
       ((parse-module (module-raw)
@@ -354,11 +354,11 @@ we assume no collisions (this should be checked by the exporting module)"
                (:type . (get-field (signature module) symbol)))))))
 
 
-(declaim (ftype (function (t) opal-package) get-package))
+(declaim (ftype (function (t) sigil-package) get-package))
 (defun get-package (name)
   (gethash name *packages*))
 
-(declaim (ftype (function (opal-package) hash-table) get-exports))
+(declaim (ftype (function (sigil-package) hash-table) get-exports))
 (defun get-exports (package)
   "Get a list of exported modules from a package"
   (iter (for name in (exported-modules package))
@@ -368,7 +368,7 @@ we assume no collisions (this should be checked by the exporting module)"
 
     (finally (return exports))))
 
-(declaim (ftype (function (opal-package list) hash-table) get-available-modules))
+(declaim (ftype (function (sigil-package list) hash-table) get-available-modules))
 (defun get-available-modules (package path)
   "Given a package, and a path to a module inside that package (not yet built),
 get a list of all modules available for import inside that module."
@@ -388,7 +388,7 @@ get a list of all modules available for import inside that module."
         by #'merge-exports
         :initial-value (ht:empty))))))
 
-(declaim (ftype (function (opal-package) hash-table) get-externally-available-modules))
+(declaim (ftype (function (sigil-package) hash-table) get-externally-available-modules))
 (defun get-externally-available-modules (package)
   "Given a package, get a list of modules which should be available for import
 in all it's modules."

@@ -1,10 +1,10 @@
-(in-package :opal)
+(in-package :sigil)
 
 
 (defun base-path (path)
   (asdf:system-relative-pathname
-   :opal
-   (concatenate 'string "src/base/" path ".opal")))
+   :sigil
+   (concatenate 'string "src/base/" path ".sgl")))
 
 ;; laod the base library
 (defun load-base-module (name path package)
@@ -28,7 +28,7 @@
   "A hacky solution (while quartz is under development) for loading in the base
 package for use in other projects/packages."
   (let ((base (make-instance
-               'opal-package
+               'sigil-package
                :name (sym "base")
                :exported-modules
                (list

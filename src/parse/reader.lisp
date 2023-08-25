@@ -32,7 +32,7 @@
 
 ;; Phase 2: infix operators
 ;; 
-(in-package :opal)
+(in-package :sigil)
 
 (declaim (ftype (function (stream) null) consume-line))
 (defun consume-line (stream)
@@ -69,7 +69,7 @@
       (while (and (symchar? (peek-char nil stream))
                   (eq special-p (special? (peek-char nil stream)))))
       (write-char (read-char stream) os))
-    (intern (get-output-stream-string os) :opal-symbols)))
+    (intern (get-output-stream-string os) :sigil-symbols)))
 
 (declaim (ftype (function (stream) t) parse-atom))
 (defun parse-atom (stream)
