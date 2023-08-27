@@ -145,10 +145,11 @@ common lisp (if e1 e2 e3)"
 ;;     ((,name (,(var term))
 ;;        ,(reify (body term) (ctx:hide (var term) ctx))))))
 
-(declaim (ftype (function (sigil-declaration) integer) calc-arity))
+(declaim (ftype (function (sigil-type) integer) calc-arity))
 (defun calc-arity (ty)
   (typecase ty
     (arrow (+ 1 (calc-arity (to ty))))
+    (forall (calc-arity (body ty)))
     (t 0)))
 
 (declaim (ftype (function (sigil-declaration) t) reify-ctor))

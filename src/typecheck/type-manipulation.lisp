@@ -95,8 +95,12 @@
 
 (defgeneric ty-subst (type subt)
   (:method ((type var) subst)
+    ;; (if (al:lookup (var type) subst)
+    ;;     (format t "lookup ~A in ~A succeeded: ~A~%" type subst (al:lookup (var type) subst))
+    ;;     (format t "lookup ~A in ~A failed~%" type subst))
     (or (al:lookup (var type) subst)
         (mk-tvar (var type))))
+
   (:method ((type type-var) subst)
     (or (al:lookup (var type) subst)
         type))
@@ -105,6 +109,7 @@
     (mk-tapp (ty-subst (left type) subst) (ty-subst (right type) subst)))
 
   (:method ((type app) subst)
+    ;;(format t "left: ~A right: ~A~%" (ty-subst (left type) subst) (ty-subst (right type) subst))
     (mk-tapp (ty-subst (left type) subst) (ty-subst (right type) subst)))
 
   (:method ((type forall) subst) 
@@ -122,7 +127,7 @@
                      (acons (var type) (mk-tvar new-var) subst))))))
 
   (:method ((type type-lambda) subst) 
-    ;; Capture avoiding substitution!
+    ;; To ensure substitution avoids capture, we rename the variable bound by the ∀.
     (let ((new-var (gensym (string (var type)))))
       (if (slot-boundp type 'var-kind)
           (mk-tλ
@@ -136,6 +141,7 @@
                      (al:insert (var type) (mk-tvar new-var) subst))))))
 
   (:method ((type inductive-type) subst) 
+    ;; As with the ∀, we rename the (recursive) variable captured by the Φ.
     (let ((new-var (gensym (string (var type)))))
       (mk-induct
        new-var
@@ -144,7 +150,7 @@
          (with new-subst = (al:insert (var type) (mk-tvar new-var) subst))
          (collect
              (mk-decl
-              new-var
+              (var ctor)
               (ty-subst (ann ctor) new-subst)))))))
 
   (:method ((type signature) subst) 
@@ -223,7 +229,7 @@
 
 (defun ty-eval (type env)
   (let* ((vals
-           (li:<>
+           (al:<>
             (iter (for entry in (env-vals env))
               (when (cdr entry) (collect entry)))
             (iter (for (key val) in-hashtable (env-base env))

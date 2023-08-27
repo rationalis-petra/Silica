@@ -553,10 +553,29 @@
     nil))
 
 (defun α>= (l r &optional renamings shadowed)
-  (α<= r l renamings shadowed))
+  (α<= r l
+       (li:map (lambda (c) (cons (cdr c) (car c))) renamings)
+       (cons (cdr shadowed) (car shadowed))))
 
 (defgeneric α<= (l r &optional renamings shadowed)
   (:documentation "Predicate: return true if the lhs is a subtype of the rhs up to α-renaming")
+  
+  (:method ((l type-var) (r type-var) &optional renamings shadowed)
+    (let ((entry (assoc (var l) renamings)))
+      (if entry
+          (eq (cdr entry) (var r))
+          (and (eq (member (var l) (car shadowed))
+                   (member (var r) (cdr shadowed)))
+               (eq (var l) (var r))))))
+
+  (:method ((l var) (r var) &optional renamings shadowed)
+    (let ((entry (assoc (var l) renamings)))
+      (if entry
+          (eq (cdr entry) (var r))
+          (and (eq (member (var l) (car shadowed))
+                   (member (var r) (cdr shadowed)))
+               (eq (var l) (var r))))))
+
   (:method ((l type-lambda) (r type-lambda) &optional renamings shadowed)
     (and 
      (or (and (not (slot-boundp l 'var-kind)) (not (slot-boundp r 'var-kind)))
@@ -566,12 +585,11 @@
           (cons (cons (var l) (car shadowed))
                 (cons (var l) (car shadowed))))))
 
-
   ;; TODO
   (:method ((l tapp) (r tapp) &optional renamings shadowed)
     (and
-     (α= (left l) (left r) renamings shadowed)
-     (α= (right l) (right r) renamings shadowed)))
+     (α<= (left l) (left r) renamings shadowed)
+     (α<= (right l) (right r) renamings shadowed)))
 
   ;; Types
   (:method ((l native-type) (r native-type) &optional renamings shadowed)
@@ -587,14 +605,6 @@
   (:method ((l arrow) (r arrow) &optional renamings shadowed)
     (and (α<= (from l) (from r) renamings shadowed)
          (α>= (to l) (to r) renamings shadowed)))
-  
-  (:method ((l type-var) (r type-var) &optional renamings shadowed)
-    (let ((entry (assoc (var l) renamings)))
-      (if entry
-          (eq (cdr entry) (var r))
-          (and (eq (member (var l) (car shadowed))
-                   (member (var r) (cdr shadowed)))
-               (eq (var l) (var r))))))
 
   (:method ((l signature) (r signature) &optional renamings shadowed)
     ;; TODO: lots of work here
@@ -629,7 +639,7 @@
         (α<= l-decl r-decl
              (acons (var l) (var r) renamings)
              (cons (cons (var l) (car shadowed))
-                   (cons (var l) (car shadowed)))))
+                   (cons (var r) (car shadowed)))))
       (constructors l) (constructors r))))
 
   (:method ((l kind) (r kind) &optional renamings shadowed)
@@ -689,7 +699,7 @@
       (iter (for entry in (entries val))
         (typecase (binder entry)
           (sigil-declaration
-           (format stream " (~A(~A) ◂ ~A)"
+           (format stream " (~A(~A) ⮜ ~A)"
                    (var entry)
                    (var (binder entry))
                    (show (ann (binder entry)))))
@@ -738,7 +748,7 @@
       (write-string "Φ" stream)
       (when-slot (var type 'var) (format stream " ~A " var))
       (iter (for ctor in (constructors type))
-        (format stream " (~A ◂ ~A)"
+        (format stream " (~A ⮜ ~A)"
                 (var ctor)
                 (show (ann ctor))))
       (get-output-stream-string stream)))
@@ -747,7 +757,7 @@
     (let ((stream (make-string-output-stream)))
       (write-string "Σ" stream )
       (iter (for entry in (entries type))
-        (format stream " (~A(~A) ◂ ~A)"
+        (format stream " (~A(~A) ⮜ ~A)"
                 (var entry)
                 (var (binder entry))
                 (show (ann (binder entry)))))
@@ -760,7 +770,7 @@
     (format nil "(~A → ~A)" (show (from kind)) (show (to kind))))
 
   (:method ((decl sigil-declaration))
-    (format nil "(~A ◂ ~A)"  (var decl) (show (ann decl))))
+    (format nil "(~A ⮜ ~A)"  (var decl) (show (ann decl))))
 
   (:method ((defn sigil-definition))
     (format nil "(~A ≜ ~A)"  (var defn) (show (val defn))))

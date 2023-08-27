@@ -32,7 +32,7 @@
   (:method ((term var) type env)
     (if (β<= type (lookup (var term) env) env)
         (typecase type
-          (kind (mk-tvar (var term)))
+          (kind (ty-eval (mk-tvar (var term)) env))
           (sigil-type (mk-mvar (var term))))
         (error 'unexpected-type
                :expected-type type
@@ -171,7 +171,8 @@
           (mk-proj (field term) struct-val)
           (error "bad projection"))))
 
-  (:method ((term app) (type sigil-type) env)
+  ;; TODO: check type vs term application??
+  (:method ((term app) type env)
     (let* ((left-result (infer (left term) env))
 
            (lt (car left-result))
@@ -186,6 +187,7 @@
                             type (to lt)))))
         (kind-arrow
          (if (α= (to lt) type)
+             ;; TODO: possibly TY-eval (right term)?
              (mk-app lv (check (right term) (ty-eval (from lt) env) env))
              (error "Bad application of type constructor")))
 
@@ -196,7 +198,7 @@
                          (mk-kind)))
 
                 ;; Check that rhs has the expected kind 
-                (right-val (check (right term) kind env)))
+                (right-val (check (ty-eval (right term) env) kind env)))
 
            ;; check that applying r to l gives the type we expect
            (unless (β<= (ty-subst (body lt) (acons (var lt) right-val nil))
@@ -324,18 +326,18 @@
       (typecase lt
         (arrow
          (if (β>= (from lt) rt env)
-             (cons (to lt) (mk-app lv rv))
+             (cons (ty-eval (to lt) env) (mk-app lv rv))
              (error "Bad application: term of type ~A cannot be applied to term of type ~A" rt lt)))
         (kind-arrow
          (if (α= (from lt) rt)
-             (cons (to lt) (mk-tapp lv rv))
+             (cons (ty-eval (to lt) env) (mk-tapp lv rv))
              (error "Bad application: type of kind ~A cannot be applied to type
            of kind ~A" rt lt)))
         (forall
          (if (α= (var-kind lt) rt)
              (cons 
-              (ty-subst (body lt) (acons (var lt) (right term) nil))
-              (mk-app lv rv))
+              (ty-eval (ty-subst (body lt) (acons (var lt) (right term) nil)) env)
+              (mk-app lv (ty-eval rv env)))
              (error "Bad application of abstraction: mismatched kinds ~A and ~A"
                     (var-kind lt) rt)))
         (t (error "Applying to neither function or abstraction of type: ~A" (show lt))))))
@@ -365,7 +367,11 @@
            (let* ((new-entry
                     (if prev-decl 
                         (let ((ty (ty-eval (ann (binder prev-decl)) (join locals env))))
-                          (cons ty (check (var-recur (var binder) (val binder)) ty (join locals env))))
+                          (format t "ty: ~A~%" ty)
+                          (cons ty
+                                (check (var-recur (var binder) (val binder))
+                                       ty
+                                       (join locals env))))
                         (infer
                          (val (binder entry))
                          (join locals env))))
@@ -424,7 +430,6 @@
 
   (:method ((term term) env)
     (error (format nil "Cannot infer type of term ~A~%" term)))
-
 
   ;; Kind inference
   (:method ((type native-type) env)
