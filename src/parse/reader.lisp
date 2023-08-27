@@ -145,9 +145,9 @@
 
 (defun raw-module (sexpr)
   (al:<>
-   (module-header (car sexpr))
+   (module-header (first sexpr))
    (al:make
-    (:body . (cdr sexpr)))))
+    (:body . (rest sexpr)))))
 
 (defun module-header (header)
   "Parse a module header"

@@ -3,7 +3,6 @@
 (defvar *sigil-modules* (make-hash-table))
 
 
-
 (defgeneric reify (term context)
   (:documentation "Take a term and convert it into a piece of lisp code with the
   appropriate semantics.")
@@ -47,23 +46,57 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
     (labels
         ((mk-binds (defs)
            (iter (for def in defs)
+             (with current-ctx = ctx)
+
              (when (typep def 'sigil-definition)
-                   (with current-ctx = ctx)
-
                (setf current-ctx (ctx:hide (var def) current-ctx))
-               (collect
-                   (list (var def) ;; TODO: replace this var with the entry var!
-                         (if (or (typep (val def) 'sigil-lambda)
-                                 (typep (val def) 'term-lambda))
-                           ;; a function; is recursive!
-                           (reify-named-lambda (var def) (val def) ctx)
 
-                           ;; a term; is not recursive!
-                           (reify (val def) ctx)))))))
+               (cond
+                 ((or (typep (val def) 'sigil-lambda)
+                      (typep (val def) 'term-lambda))
+                  (accumulate 
+                      (list (var def)
+                            (reify-named-lambda (var def) (val def) ctx))
+                      by #'cons
+                      into out))
+
+                 ((typep (val def) 'inductive-type)
+                  ;; TODO: can we remove this accumulate?
+                  (accumulate 
+                   (list (var def) (reify (val def) ctx))
+                   by #'cons
+                   into out)
+
+                  (accumulate
+                  ;; Collect the defintions of all inductive types
+                   (li:map #'reify-ctor (constructors (val def)))
+                   by #'append
+                   into out))
+
+                 (t (accumulate
+                     (list (var def) (reify (val def) ctx))
+                     by #'cons
+                     into out))))
+
+             (finally (return (reverse out)))))
+
          (get-vars (entries)
            (iter (for entry in entries)
              (when (typep (binder entry) 'sigil-definition)
-               (collect (var entry)))))
+               (accumulate
+                (var entry)
+                by #'cons
+                into out)
+
+               (when (typep (val (binder entry)) 'inductive-type)
+                 (accumulate
+                  ;; Collect the defintions of all inductive types
+                   (li:map #'var (constructors (val (binder entry))))
+                   by #'append
+                   into out)))
+
+             (finally (return (reverse out)))))
+
          (mk-hashmap (vars)
            ;; We can safely use a non-hygenic macro, as all sigil code will only
            ;; contain symbols in the *sigil-symbols* package.
@@ -111,3 +144,28 @@ common lisp (if e1 e2 e3)"
 ;;   `(labels
 ;;     ((,name (,(var term))
 ;;        ,(reify (body term) (ctx:hide (var term) ctx))))))
+
+(declaim (ftype (function (sigil-declaration) integer) calc-arity))
+(defun calc-arity (ty)
+  (typecase ty
+    (arrow (+ 1 (calc-arity (to ty))))
+    (t 0)))
+
+(declaim (ftype (function (sigil-declaration) t) reify-ctor))
+(defun reify-ctor (decl)
+  (list
+   (var decl)
+
+   (let* ((arity (calc-arity (ann decl)))
+          (vars (li:iota arity (lambda (x) (declare (ignore x)) (gensym)))))
+
+     (iter (for var in vars)
+       (accumulate var
+        by (lambda (sym body)
+             `(lambda (,sym) ,body))
+        initial-value
+        `(make-instance
+          'sigil/impl:sigil-inductive-value
+          :values (make-array ,arity :initial-contents (list ,@vars))
+          :name (quote ,(var decl))))))))
+

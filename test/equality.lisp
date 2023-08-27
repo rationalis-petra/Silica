@@ -65,7 +65,21 @@
           (mk-decl 'x int-type)
           (mk-def 'x (mk-val 2))
           (mk-decl 'y (mk-∀ 'a (mk-arr (mk-var 'a) (mk-var 'a))))
-          (mk-def 'y (mk-abs 'a (mk-λ 'x (mk-var 'a) (mk-var 'x))))))))
+          (mk-def 'y (mk-abs 'a (mk-λ 'x (mk-var 'a) (mk-var 'x)))))))
+
+    (is α=
+        (mk-induct
+         'I
+         (mk-kind)
+         (list
+          (mk-decl 'int-literal (mk-arr int-type (mk-tvar 'I)))
+          (mk-decl 'constant (mk-tvar 'I))))
+        (mk-induct
+         'I
+         (mk-kind)
+         (list
+          (mk-decl 'int-literal (mk-arr int-type (mk-tvar 'I)))
+          (mk-decl 'constant (mk-tvar 'I))))))
 
   (define-test type-alpha-inequality
     (isnt α=

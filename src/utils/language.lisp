@@ -1,7 +1,9 @@
 (defpackage :lang-extensions
   (:use :cl :iter)
   (:export
-   :-> :->>))
+   :-> :->>
+   :when-slot
+   :if-slot))
 (in-package :lang-extensions)
 
 (defmacro -> (form &rest forms)
@@ -27,3 +29,14 @@
             (t (error (format nil "Threading macro ->> expects FORMS to be lists of at
   least one element, got ~A" sexpr)))))
      initial-value form)))
+
+(defmacro if-slot ((var object slot-name) if-true if-false)
+  `(if (slot-boundp ,object ,slot-name)
+       (let ((,var (slot-value ,object ,slot-name)))
+         ,if-true)
+       ,if-false))
+
+(defmacro when-slot ((var object slot-name) &rest body)
+  `(when (slot-boundp ,object ,slot-name)
+     (let ((,var (slot-value ,object ,slot-name)))
+       ,@body)))

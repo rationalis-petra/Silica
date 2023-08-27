@@ -120,6 +120,7 @@
     :type term
     :reader body
     :initarg :body)))
+
 ;; Structure related
 (defclass sigil-struct (term)
   ((entries
@@ -135,6 +136,7 @@
     :type symbol
     :reader field
     :initarg :field)))
+
 ;; Recursive datatype-related
 (defclass inductive-ctor (term)
   ((val-type
@@ -145,17 +147,24 @@
     :type symbol
     :reader name
     :initarg :name)))
-(defclass inductive-val (term)
-  ((constructor
-    :type inductive-ctor
-    :reader constructor
-    :initarg constructor)
-   (vals
-    :type (vector term)
-    :reader vals
-    :initarg :vals)))
 
-;; yuck!
+(defclass pattern-match (term)
+  ((clauses
+    :type list
+    :reader clauses
+    :initarg clauses)))
+
+;; (defclass inductive-val (term)
+;;   ((constructor
+;;     :type inductive-ctor
+;;     :reader constructor
+;;     :initarg constructor)
+;;    (vals
+;;     :type (vector term)
+;;     :reader vals
+;;     :initarg :vals)))
+
+;; yuck! can we remove him via laziness?
 (defclass conditional (term)
   ((test
     :type term
@@ -233,7 +242,11 @@
     :reader entries
     :initarg :entries)))
 (defclass inductive-type (sigil-type)
-  ((kind
+  ((var
+    :type symbol
+    :reader var
+    :initarg :var)
+   (kind
     :type kind
     :reader kind
     :initarg :kind)
@@ -337,6 +350,24 @@
   (make-instance 'app :left left :right right))
 (defun mk-struct (defs)
   (make-instance 'sigil-struct :entries defs)) 
+
+(declaim (ftype (function (symbol (or kind list) &optional list) inductive-type) mk-induct))
+(defun mk-induct (var k-or-c &optional constructors)
+  (if (not constructors)
+      (make-instance 'inductive-type
+                     :var var
+                     :constructors k-or-c)
+      (make-instance 'inductive-type
+                     :var var
+                     :kind k-or-c
+                     :constructors constructors)))
+
+(declaim (ftype (function (inductive-type symbol) inductive-ctor) mk-ctor))
+(defun mk-ctor (type name)
+  (make-instance 'inductive-ctor
+                 :val-type type
+                 :name name))
+
 (defun mk-proj (field struct)
   (make-instance 'projection :structure struct :field field))
 (defun mk-val (val)
@@ -428,6 +459,17 @@
                 (α= (binder elt-1) (binder elt-2) renamings shadowed))))))
      (= (length (entries l)) (length (entries r)))))
 
+  (:method ((l inductive-type) (r inductive-type) &optional renamings shadowed)
+    (and 
+     (α= (kind l) (kind r))
+     (every
+      (lambda (l-decl r-decl)
+        (α= l-decl r-decl
+            (acons (var l) (var r) renamings)
+            (cons (cons (var l) (car shadowed))
+                  (cons (var l) (car shadowed)))))
+      (constructors l) (constructors r))))
+
   (:method ((l app) (r app) &optional renamings shadowed)
     (and
      (α= (left l) (left r) renamings shadowed)
@@ -515,7 +557,7 @@
 
 (defgeneric α<= (l r &optional renamings shadowed)
   (:documentation "Predicate: return true if the lhs is a subtype of the rhs up to α-renaming")
-    (:method ((l type-lambda) (r type-lambda) &optional renamings shadowed)
+  (:method ((l type-lambda) (r type-lambda) &optional renamings shadowed)
     (and 
      (or (and (not (slot-boundp l 'var-kind)) (not (slot-boundp r 'var-kind)))
          (α= (var-kind l) (var-kind r)))
@@ -545,7 +587,7 @@
   (:method ((l arrow) (r arrow) &optional renamings shadowed)
     (and (α<= (from l) (from r) renamings shadowed)
          (α>= (to l) (to r) renamings shadowed)))
-    
+  
   (:method ((l type-var) (r type-var) &optional renamings shadowed)
     (let ((entry (assoc (var l) renamings)))
       (if entry
@@ -558,7 +600,7 @@
     ;; TODO: lots of work here
     (and 
      (iter (for entry-1 in (entries l))
-           (for entry-2 in (entries r))
+       (for entry-2 in (entries r))
        (always
         (and (eq (var entry-1) (var entry-2))
              (α= (binder entry-1) (binder entry-2) renamings shadowed))))
@@ -568,16 +610,27 @@
   (:method ((l sigil-definition) (r sigil-definition)
             &optional renamings shadowed)
     (α<= (val l) (val r)
-        (acons (var l) (var r) renamings)
-        (cons (cons (var l) (car shadowed))
-              (cons (var r) (cdr shadowed)))))
+         (acons (var l) (var r) renamings)
+         (cons (cons (var l) (car shadowed))
+               (cons (var r) (cdr shadowed)))))
 
   (:method ((l sigil-declaration) (r sigil-declaration)
             &optional renamings shadowed)
     (α<= (ann l) (ann r)
-        (acons (var l) (var r) renamings)
-        (cons (cons (var l) (car shadowed))
-              (cons (var r) (cdr shadowed)))))
+         (acons (var l) (var r) renamings)
+         (cons (cons (var l) (car shadowed))
+               (cons (var r) (cdr shadowed)))))
+
+  (:method ((l inductive-type) (r inductive-type) &optional renamings shadowed)
+    (and 
+     (α= (kind l) (kind r))
+     (every
+      (lambda (l-decl r-decl)
+        (α<= l-decl r-decl
+             (acons (var l) (var r) renamings)
+             (cons (cons (var l) (car shadowed))
+                   (cons (var l) (car shadowed)))))
+      (constructors l) (constructors r))))
 
   (:method ((l kind) (r kind) &optional renamings shadowed)
     (α= l r renamings shadowed))
@@ -648,7 +701,7 @@
       (write-string ")" stream)
       (get-output-stream-string stream)))
 
-  (:method ((val conditional))
+   (:method ((val conditional))
     (format nil "if ~A ~A ~A"
             (mparen (test val))
             (mparen (if-true val))
@@ -680,17 +733,26 @@
       (write-string (mparen (right type)) stream)
       (get-output-stream-string stream)))
 
+  (:method ((type inductive-type))
+    (let ((stream (make-string-output-stream)))
+      (write-string "Φ" stream)
+      (when-slot (var type 'var) (format stream " ~A " var))
+      (iter (for ctor in (constructors type))
+        (format stream " (~A ◂ ~A)"
+                (var ctor)
+                (show (ann ctor))))
+      (get-output-stream-string stream)))
+
   (:method ((type signature))
     (let ((stream (make-string-output-stream)))
-      (write-string "(Σ" stream )
+      (write-string "Σ" stream )
       (iter (for entry in (entries type))
         (format stream " (~A(~A) ◂ ~A)"
                 (var entry)
                 (var (binder entry))
                 (show (ann (binder entry)))))
-      (write-string ")" stream)
       (get-output-stream-string stream)))
-
+  
   ;; For Kinds
   (:method ((kind kind-type)) "κ")
 

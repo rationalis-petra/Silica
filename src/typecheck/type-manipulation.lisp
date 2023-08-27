@@ -129,11 +129,23 @@
            new-var
            (var-kind type)
            (ty-subst (body type)
-                     (acons (var type) (mk-tvar new-var) subst)))
+                     (al:insert (var type) (mk-tvar new-var) subst)))
           (mk-tλ
            new-var
            (ty-subst (body type)
-                     (acons (var type) (mk-tvar new-var) subst))))))
+                     (al:insert (var type) (mk-tvar new-var) subst))))))
+
+  (:method ((type inductive-type) subst) 
+    (let ((new-var (gensym (string (var type)))))
+      (mk-induct
+       new-var
+       (kind type)
+       (iter (for ctor in (constructors type))
+         (with new-subst = (al:insert (var type) (mk-tvar new-var) subst))
+         (collect
+             (mk-decl
+              new-var
+              (ty-subst (ann ctor) new-subst)))))))
 
   (:method ((type signature) subst) 
     (mk-sig
@@ -196,6 +208,13 @@
                 (mk-decl (var (binder entry))
                          (ty-reduce (ann (binder entry))))))
              (entries type))))
+  (:method ((type inductive-type))
+    (mk-induct
+     (var type)
+     (kind type)
+     (iter (for ctor in (constructors type))
+       (collect
+           (mk-decl (var ctor) (ty-reduce (ann ctor)))))))
 
   (:method ((type type-var)) type)
   (:method ((type var)) type)
@@ -218,8 +237,6 @@
 values, to deal with existential typing."
     (α= (ty-eval l env) (ty-eval r env)))
 
-
-
 (defun β= (l r env)
   "Tests for α-equality in environment env. This allows substituting types for
 values, to deal with existential typing."
@@ -234,3 +251,53 @@ values, to deal with existential typing."
   "Tests for α-equality in environment env. This allows substituting types for
 values, to deal with existential typing."
     (α>= (ty-eval l env) (ty-eval r env)))
+
+
+
+(declaim (ftype (function (t t t t env) env) update-locals))
+(defun update-locals (binder already-boundp type value local-variables)
+  "Update a set of LOCAL-VARIALES by binding a VALUE of type
+  TYPE. Note that this may introduce more than one variable into the
+  LOCAL-VARIABLES, e.g. if VALUE is an inductive type.
+
+For usage in modules and structures"
+
+  (->>
+   (typecase type
+     ;; if current definition defines a term, check if it's been declared
+     ;; if not, add it into the local bindings
+     (sigil-type
+      (if (not already-boundp)
+          (bind (var binder) type local-variables)
+          local-variables))
+
+     (kind
+      ;; if current definition defines a type, add it's kind and
+      ;; value into local bindings
+      (if already-boundp
+          (bind-existing-val (var binder) value local-variables)
+          (bind-2 (var binder) type value local-variables)))
+     (t (error "unrecognized type")))
+
+   ((lambda (locals)
+      (if (typep value 'inductive-type)
+          (iter (for ctor in (constructors value))
+            (accumulate
+             ;; Substitute all recursive references to the inductive type with
+             ;; the type itself.
+             (cons
+              (var ctor)
+              (ty-subst (ann ctor) (al:make ((var value) . value))))
+             by (lambda (c l) (bind-2 (car c) (cdr c) (mk-ctor value (var ctor)) l))
+             initial-value locals))
+          locals)))))
+
+;; (when (typep new-val 'inductive-type))
+(declaim (ftype (function (symbol (or term sigil-type)) (or term sigil-type)) var-recur))
+(defun var-recur (var value)
+  "If VALUE is recursive, tell it it's name via VAR."
+  (typecase value
+    (inductive-type
+     (setf (slot-value value 'var) var))
+    (t value))
+  value)

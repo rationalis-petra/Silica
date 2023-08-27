@@ -20,7 +20,8 @@
      :pathname "codegen"
      :depends-on ("syntax")
      :components
-     ((:file "codegen" :depends-on ("context"))
+     ((:file "codegen" :depends-on ("context" "representation"))
+      (:file "representation")
       (:file "context")))
    (:module "parse"
      :pathname "parse"

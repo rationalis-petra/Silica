@@ -6,7 +6,7 @@
    :sigil
    (concatenate 'string "src/base/" path ".sgl")))
 
-;; laod the base library
+;; Load the base library
 (defun load-base-module (name path package)
   (with-open-file (file (base-path path))
     (let* ((module-raw (parse-file file))

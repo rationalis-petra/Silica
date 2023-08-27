@@ -5,7 +5,7 @@
    ;; functions
    :funcall :apply
    ;; types
-   :ftype :function :null :list
+   :ftype :function :null :list :integer :number
    ;; list functions (to lift)
    :mapcar :append
    ;; macros
@@ -24,13 +24,19 @@
    :each
    :merge
    :join
+   :iota
    :<>))
 (in-package :containers/list)
+
+(declaim (ftype (function (integer &optional (function (integer) t)) list) iota))
+(defun iota (num &optional (func (lambda (x) x)))
+  (iter (for i from 1 to num)
+    (collect (funcall func i))))
 
 (declaim (ftype (function () list) empty))
 (defun empty () nil)
 
-(declaim (ftype (function (list) list) map))
+(declaim (ftype (function (list) list) join))
 (defun join (list) (apply #'append list))
 
 (declaim (ftype (function (t list) list) map))

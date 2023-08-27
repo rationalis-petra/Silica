@@ -1,6 +1,20 @@
 (in-package :sigil)
 
-(defvar *supress-print* nil)
+(define-condition unexpected-type (error)
+  ((message
+    :type string
+    :initarg :message
+    :initform ""
+    :reader message)
+   (actual-type
+    :type sigil-type
+    :initarg :actual-type
+    :reader actual-type)
+   (expected-type
+    :type sigil-type
+    :initarg :actual-type
+    :reader message))
+  (:documentation ""))
 
 ;; we use bidirectional typechecking
 ;; i.e. 1x check method, 1x infer method
@@ -11,16 +25,18 @@
   (:method ((term lisp-form) type env)
     (if (β<= (form-type term) type env)
         term
-        (error
-         (format nil "Types not equal: ~A and ~A~%" type (form-type term)))))
+        (error 'unexpected-type
+               :expected-type type
+               :actual-type (form-type term))))
 
   (:method ((term var) type env)
     (if (β<= type (lookup (var term) env) env)
         (typecase type
           (kind (mk-tvar (var term)))
           (sigil-type (mk-mvar (var term))))
-        (error (format nil "Var ~A does not have type ~A, but rather~A~%"
-                       (var term) type (lookup (var term) env)))))
+        (error 'unexpected-type
+               :expected-type type
+               :actual-type (lookup (var term) env))))
 
   (:method ((term term-var) type env)
     (if (β<= type (lookup (var term) env) env)
@@ -124,6 +140,7 @@
                 (sigil-type
                  ;; if current definition defines a type, add it's kind and
                  ;; value into local
+                 ; (setf locals binder prev-decl new-val locals)
                  (if prev-decl
                      (setf locals (bind-existing-val (var (binder decl-entry)) new-val locals))
                      (setf locals (bind-2 (var (binder decl-entry)) (ann (binder decl-entry)) new-val locals)))))
@@ -200,8 +217,19 @@
     ;; TODO: iterate through & check for well-formedness
     type)
 
+  (:method ((type inductive-type) (kind kind) env)
+    ;; Iterate through all constructors
+    (mk-induct
+     (var type)
+     (if-slot (vk type 'kind) vk kind)
+     (iter (for ctor in (constructors type))
+       (collect
+           (mk-decl
+            (var ctor)
+            (check (ann ctor) (mk-kind) env))))))
+
   (:method ((type forall) (kind kind-type) env)
-    (let ((kind (if (slot-boundp type 'var-kind) (var-kind type) (mk-kind)))) 
+    (let ((kind (if-slot (vkind type 'var-kind) vkind (mk-kind))))
      (mk-∀ (var type) kind
            (check (body type) (mk-kind) (bind (var type) kind env)))))
 
@@ -337,7 +365,7 @@
            (let* ((new-entry
                     (if prev-decl 
                         (let ((ty (ty-eval (ann (binder prev-decl)) (join locals env))))
-                          (cons ty (check (val binder) ty (join locals env))))
+                          (cons ty (check (var-recur (var binder) (val binder)) ty (join locals env))))
                         (infer
                          (val (binder entry))
                          (join locals env))))
@@ -351,18 +379,7 @@
 
 
              ;; Update locals
-             (typecase new-ty
-               ;; if current definition defines a term, check if it's been declared
-               ;; if not, add it into the local bindings
-               (sigil-type
-                (unless prev-decl
-                  (setf locals (bind (var binder) new-ty locals))))
-               (kind
-                ;; if current definition defines a type, add it's kind and
-                ;; value into local bindings
-                (if prev-decl
-                    (setf locals (bind-existing-val (var binder) new-val locals))
-                    (setf locals (bind-2 (var binder) new-ty new-val locals)))))
+             (setf locals (update-locals binder prev-decl new-ty new-val locals))
 
              (collect (or (when prev-decl (binder prev-decl))
                           (mk-decl (var binder) new-ty))
@@ -387,6 +404,7 @@
                                 ;; perhaps the signature?
                                 (lambda (x) (mk-entry (var x) x))
                                 out-entries))))))))
+
   (:method ((term conditional) env)
     (let* ((test (check (test term) (mk-native 'boolean) env))
            (if-true (infer (if-true term) env))
