@@ -1,11 +1,11 @@
-(in-package :sigil)
+(in-package :silica)
 
 ;; Module/Package system
 ;; Inspired by Ocaml
 
 (defvar *packages* (ht:empty))
 
-(defclass sigil-package ()
+(defclass silica-package ()
   ((name
     :type string
     :reader name
@@ -73,7 +73,7 @@
     :initarg :exports
     :initform nil))
   (:documentation "The Module class represents a discrete unit of code within
-the sigil programming Language. At the language-level, modules look identical
+the silica programming Language. At the language-level, modules look identical
 to structures.
 
 However, they require distinct implementations, to facilitate build-systems and
@@ -86,7 +86,7 @@ modular recompilation. "))
 
 
 ;; Functions to get information from 'raw' (read) syntax trees.
-(declaim (ftype (function (sigil-package list) module) build-module))
+(declaim (ftype (function (silica-package list) module) build-module))
 (defun build-module (package module-raw)
   (labels
       ((parse-module (module-raw)
@@ -123,9 +123,9 @@ modular recompilation. "))
                   ;; The field is not defined in this module, so we must check
                   ;; if this value was imported. If if yes, then modify the type
                   ;; & typed ast to match. If no, then raise an error.  
-                  (if (and (lookup field env) (ctx:lookup field ctx))
+                  (if (and (env:lookup field env) (ctx:lookup field ctx))
                       (progn
-                        (collect (mk-decl field (lookup field env))
+                        (collect (mk-decl field (env:lookup field env))
                           into pass-types)
                         (collect (mk-def field (ctx:lookup field ctx))
                           into pass-values))
@@ -176,7 +176,7 @@ modular recompilation. "))
 
 (declaim (ftype (function (hash-table list) env) gen-env))
 (defun gen-env (available-modules module-raw)
-  (make-env-from
+  (env:make-from
    (process-import-declaration
     available-modules
     module-raw
@@ -354,11 +354,11 @@ we assume no collisions (this should be checked by the exporting module)"
                (:type . (get-field (signature module) symbol)))))))
 
 
-(declaim (ftype (function (t) sigil-package) get-package))
+(declaim (ftype (function (t) silica-package) get-package))
 (defun get-package (name)
   (gethash name *packages*))
 
-(declaim (ftype (function (sigil-package) hash-table) get-exports))
+(declaim (ftype (function (silica-package) hash-table) get-exports))
 (defun get-exports (package)
   "Get a list of exported modules from a package"
   (iter (for name in (exported-modules package))
@@ -368,7 +368,7 @@ we assume no collisions (this should be checked by the exporting module)"
 
     (finally (return exports))))
 
-(declaim (ftype (function (sigil-package list) hash-table) get-available-modules))
+(declaim (ftype (function (silica-package list) hash-table) get-available-modules))
 (defun get-available-modules (package path)
   "Given a package, and a path to a module inside that package (not yet built),
 get a list of all modules available for import inside that module."
@@ -388,7 +388,7 @@ get a list of all modules available for import inside that module."
         by #'merge-exports
         :initial-value (ht:empty))))))
 
-(declaim (ftype (function (sigil-package) hash-table) get-externally-available-modules))
+(declaim (ftype (function (silica-package) hash-table) get-externally-available-modules))
 (defun get-externally-available-modules (package)
   "Given a package, get a list of modules which should be available for import
 in all it's modules."

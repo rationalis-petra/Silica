@@ -1,4 +1,4 @@
-(defpackage :sigil/types
+(defpackage :silica/types
   (:use :cl))
 
-;; Sigil native types. 
+;; silica native types. 

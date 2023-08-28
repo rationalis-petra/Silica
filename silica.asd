@@ -1,11 +1,11 @@
 (require 'asdf)
 
-(defsystem :sigil
-  :name "sigil"
+(defsystem :silica
+  :name "Silica"
   :version "1.0.0"
   :maintainer "Connor Redfern"
   :license "BSD-3"
-  :description "Sigil: a functional langauge implemented on top of lisp."
+  :description "Silica: a functional langauge implemented on top of lisp."
   :depends-on (:asdf
                :alexandria
                :iterate
@@ -34,9 +34,10 @@
      :depends-on ("syntax")
      :components
      ((:file "typecheck" :depends-on ("type-manipulation"))
-      (:file "type-manipulation")))
-   (:file "syntax" :depends-on ("sigil"))
-   (:file "sigil" :depends-on ("containers" "lang"))
+      (:file "type-manipulation" :depends-on ( "environment"))
+      (:file "environment")))
+   (:file "syntax" :depends-on ("silica"))
+   (:file "silica" :depends-on ("containers" "lang"))
 
    (:module "lang"
      :pathname "utils"

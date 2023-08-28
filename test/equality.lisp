@@ -1,7 +1,7 @@
-(in-package :sigil-tests)
+(in-package :silica-tests)
 
 (defparameter int-type (make-instance
-                        'sigil::native-type
+                        'silica::native-type
                         :native-type 'integer))
 
 (define-test equality
@@ -23,7 +23,7 @@
         (mk-∀ 'b (mk-var 'b)))
 
     (is α= int-type
-        (make-instance 'sigil::native-type
+        (make-instance 'silica::native-type
                        :native-type 'integer))
     (is α=
         (mk-arr int-type int-type)
@@ -91,7 +91,7 @@
         (mk-∀ 'b (mk-var 'b)))
 
     (isnt α= int-type
-        (make-instance 'sigil::native-type
+        (make-instance 'silica::native-type
                        :native-type 'symbol))
 
     (isnt α=
@@ -165,16 +165,15 @@
          (mk-karr (mk-kind) (mk-kind))
          (list
           (mk-decl 'any
-           (mk-abs 'a (mk-arr (mk-tvar 'a) (mk-tapp (mk-tvar 'I) (mk-tvar 'a)))))))
+           (mk-∀ 'a (mk-arr (mk-tvar 'a) (mk-tapp (mk-tvar 'I) (mk-tvar 'a)))))))
         (mk-induct
-         'I
+         'B
          (mk-karr (mk-kind) (mk-kind))
          (list
           (mk-decl 'any
-           (mk-abs 'a (mk-arr (mk-tvar 'a) (mk-tapp (mk-tvar 'I) (mk-tvar 'a))))))))
+           (mk-∀ 'a (mk-arr (mk-tvar 'a) (mk-tapp (mk-tvar 'B) (mk-tvar 'a))))))))
 
     (is α<=
         (mk-karr (mk-kind) (mk-kind))
         (mk-karr (mk-kind) (mk-kind)))))
-
 

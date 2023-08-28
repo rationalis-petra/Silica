@@ -1,18 +1,18 @@
-(defpackage :sigil/util
+(defpackage :silica/util
   (:use :cl :iterate)
   (:export :app-curry))
 
-(in-package :sigil/util)
+(in-package :silica/util)
 
 (defmacro app-curry (func &rest args)
   (iter (for arg in args)
     (accumulate arg by (lambda (arg body) `(funcall ,body ,arg))
                 initial-value func)))
 
-(in-package :sigil)
+(in-package :silica)
 
-(declaim (ftype (function (string string &rest list) t) sigil-val))
-(defun sigil-val (package module &rest path)
+(declaim (ftype (function (string string &rest list) t) silica-val))
+(defun silica-val (package module &rest path)
   (let* ((pkg (gethash (sym package) *packages*))
          (module (gethash (sym module) (modules pkg))))
     (iter (for name in path)
@@ -21,7 +21,7 @@
       (finally (return val)))))
 
 (defun run-main (&rest path)
-  (funcall (apply #'sigil-val (append path '("main"))) t))
+  (funcall (apply #'silica-val (append path '("main"))) t))
 
 (defparameter *diagnostic* nil)
 
@@ -44,25 +44,25 @@
       (format t "expr: ~A~%" expr))
     expr))
 
-(named-readtables:defreadtable sigil:classic
+(named-readtables:defreadtable silica:classic
   (:merge :standard)
   (:case :preserve))
 
-(in-package :sigil-user)
+(in-package :silica-user)
 
 ;; TODO: add typechecking...
 (cl:defmacro |module| (name cl:&body defs)
-  `(cl:setf (cl:gethash (cl:quote ,name) sigil:*sigil-modules*)
-            ,(sigil::process-module name () () defs)))
+  `(cl:setf (cl:gethash (cl:quote ,name) silica:*silica-modules*)
+            ,(silica::process-module name () () defs)))
 
-  ;; `(cl:setf (cl:gethash (cl:quote ,name) sigil:*sigil-modules*)
-  ;;           ,(sigil:reify
-  ;;             (sigil::mk-struct (cl:mapcar #'sigil:to-def defs))
+  ;; `(cl:setf (cl:gethash (cl:quote ,name) silica:*silica-modules*)
+  ;;           ,(silica:reify
+  ;;             (silica::mk-struct (cl:mapcar #'silica:to-def defs))
   ;;             cl:nil)))
 
 (cl:unless (cl:boundp (cl:quote |τ|))
   (cl:defconstant |τ|
-    (cl:make-instance 'sigil:kind-type)))
+    (cl:make-instance 'silica:kind-type)))
 
 ;; Grammar
 ;; infix operators → all same fixity 
@@ -70,4 +70,4 @@
 ;; 
 ;; 
 
-;; (defun parse-sigil-lisp ())
+;; (defun parse-silica-lisp ())

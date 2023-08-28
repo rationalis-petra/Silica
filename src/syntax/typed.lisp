@@ -1,0 +1,43 @@
+(defpackage :syntax/typed
+  (:nicknames :st)
+  (:use :cl :iter :alexandria))
+(in-package :syntax/typed)
+
+
+;; helper classes
+(defclass label ())
+(defclass silica-declaration ())
+(defclass silica-definition ())
+(defclass match-clause ())
+(defclass pattern ())
+
+;; terms (values)
+(defclass tm-var (term))
+(defclass tm-telescope (term))
+(defclass tm-projection (term))
+(defclass tm-lambda (term))
+(defclass abstraction (term))
+(defclass inductive-ctor (term))
+(defclass match (term))
+(defclass conditional (term))
+(defclass silica-structure (term))
+(defclass native-type (term))
+(defclass lisp-form (term))
+
+;; expressions (types)
+(defclass type ())
+(defclass ty-var (type))
+(defclass ty-arrow (term))
+(defclass ty-telescope (type))
+(defclass ty-projection (type))
+(defclass ty-lambda (type))
+(defclass forall (type))
+(defclass inductive-type (type))
+(defclass inductive-def (type))
+(defclass silica-signature (type))
+(defclass native (type))
+
+;; expressions (kinds)
+(defclass kind (kind))
+(defclass kind-type (kind))
+(defclass kind-arrow (kind))

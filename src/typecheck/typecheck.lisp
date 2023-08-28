@@ -1,4 +1,4 @@
-(in-package :sigil)
+(in-package :silica)
 
 (define-condition unexpected-type (error)
   ((message
@@ -7,18 +7,29 @@
     :initform ""
     :reader message)
    (actual-type
-    :type sigil-type
+    :type silica-type
     :initarg :actual-type
     :reader actual-type)
    (expected-type
-    :type sigil-type
+    :type silica-type
     :initarg :actual-type
     :reader message))
   (:documentation ""))
 
+
+(declaim (ftype (function (list silica-type env:env) cons) extract-pattern))
+(defun extract-pattern (pattern type env)
+  "Given a PATTERN which is matching a value of type TYPE in an ENVIRONMENT,
+return the pair representing:
+1. An updated representation of the pattern
+2. A set of local variables, representing variables which are bound within the
+pattern."
+  (declare (ignore pattern type env))
+  (error "Extract-pattern not implemented!"))
+
 ;; we use bidirectional typechecking
 ;; i.e. 1x check method, 1x infer method
-(declaim (ftype (function (t t t) (or term sigil-type)) check))
+(declaim (ftype (function (t t t) (or term silica-type)) check))
 (defgeneric check (term type env)
   (:documentation "Perform typechecking.")
 
@@ -30,34 +41,34 @@
                :actual-type (form-type term))))
 
   (:method ((term var) type env)
-    (if (β<= type (lookup (var term) env) env)
+    (if (β<= type (env:lookup (var term) env) env)
         (typecase type
           (kind (ty-eval (mk-tvar (var term)) env))
-          (sigil-type (mk-mvar (var term))))
+          (silica-type (mk-mvar (var term))))
         (error 'unexpected-type
                :expected-type type
-               :actual-type (lookup (var term) env))))
+               :actual-type (env:lookup (var term) env))))
 
   (:method ((term term-var) type env)
-    (if (β<= type (lookup (var term) env) env)
+    (if (β<= type (env:lookup (var term) env) env)
         term
         (error (format nil "Var ~A does not have type ~A, but rather~A~%"
-                       (var term) type (lookup (var term) env)))))
+                       (var term) type (env:lookup (var term) env)))))
 
   (:method ((term type-var) type env)
-    (if (β<= type (lookup (var term) env) env)
+    (if (β<= type (env:lookup (var term) env) env)
         term
         (error (format nil "Var ~A does not have type ~A, but rather~A~%"
-                       (var term) type (lookup (var term) env)))))
+                       (var term) type (env:lookup (var term) env)))))
 
-  (:method ((term sigil-literal) (type native-type) env)
+  (:method ((term silica-literal) (type native-type) env)
     (if (typep (val term) (native-type type))
         term
         (error (format nil "Term ~A does not have type ~A~%" term type))))
 
-  (:method ((term sigil-lambda) (type arrow) env)
+  (:method ((term silica-lambda) (type arrow) env)
     (flet ((body-check (from to)
-             (check (body term) to (bind (var term) from env))))
+             (check (body term) to (env:bind (var term) from env))))
       (if (slot-boundp term 'var-type)
           (if (α-r= (from type) (check (var-type term) (mk-kind) env) env)
               (mk-mλ (var term) (from type) (body-check (var-type term) (to type)))
@@ -66,9 +77,9 @@
                 (from type)
                 (body-check (from type) (to type))))))
 
-  (:method ((term sigil-lambda) (type kind-arrow) env)
+  (:method ((term silica-lambda) (type kind-arrow) env)
     (flet ((body-check (from to)
-             (check (body term) to (bind (var term) from env))))
+             (check (body term) to (env:bind (var term) from env))))
       (if (slot-boundp term 'var-type)
           (if (α= (from type) (var-type term))
               (body-check (var-type term) (to type))
@@ -80,10 +91,10 @@
   (:method ((term abstract) (type forall) env)
     (flet ((body-check (body type var1 var2 kind)
              (if (eq var1 var2)
-                 (check body type (bind var2 kind env))
+                 (check body type (env:bind var2 kind env))
                  (check body
                         (ty-subst type (acons var1 (mk-tvar var2) nil))
-                        (bind var2 kind env)))))
+                        (env:bind var2 kind env)))))
       ;; TODO: 
       (unless (or (not (slot-boundp term 'var-kind))
                   ;; (not (slot-boundp type 'var-kind))
@@ -93,7 +104,7 @@
       (mk-abs (var term) (var-kind type)
               (body-check (body term) (body type) (var type) (var term) (var-kind type)))))
 
-  (:method ((term sigil-struct) (type signature) env)
+  (:method ((term silica-struct) (type signature) env)
     (labels ((has-repeating-field (list)
                (cond
                  ((null list) nil)
@@ -103,7 +114,7 @@
       ;; If it has repeating fields, typecheck fails
       (when (has-repeating-field
              (iter (for entry in (entries term))
-               (when (typep (binder entry) 'sigil-definition)
+               (when (typep (binder entry) 'silica-definition)
                  (collect (var entry)))))
         (error "Repeating definitions in term: ~A" term))
 
@@ -111,19 +122,19 @@
        (iter (for entry in (entries term))
              (for binder = (binder entry))
              (with decls = (entries type))
-             (with locals = +empty-env+)
+             (with locals = env:+empty+)
              (with prev-decl = nil)
 
          ;; locals = local declarations
          ;; (with type-vals = nil)
          (typecase binder
-           (sigil-definition
+           (silica-definition
             (let* ((decl-entry (or prev-decl (pop decls)))
                    (new-val
                      (check
                       (val binder)
-                      (ty-eval (ann (binder decl-entry)) (join locals env))
-                      (join locals env))))
+                      (ty-eval (ann (binder decl-entry)) (env:join locals env))
+                      (env:join locals env))))
 
               (unless (eq (var entry) (var decl-entry))
                 (error "Definition variable not equal to declaration variable: ~A ~A"
@@ -136,35 +147,35 @@
                  ;; if current definition defines a term, check if it's been declared
                  ;; if not, add it into the locals
                  (unless prev-decl
-                   (setf locals (bind (var (binder decl-entry)) (ann (binder decl-entry)) locals))))
-                (sigil-type
+                   (setf locals (env:bind (var (binder decl-entry)) (ann (binder decl-entry)) locals))))
+                (silica-type
                  ;; if current definition defines a type, add it's kind and
                  ;; value into local
                  ; (setf locals binder prev-decl new-val locals)
                  (if prev-decl
-                     (setf locals (bind-existing-val (var (binder decl-entry)) new-val locals))
-                     (setf locals (bind-2 (var (binder decl-entry)) (ann (binder decl-entry)) new-val locals)))))
+                     (setf locals (env:bind-existing-val (var (binder decl-entry)) new-val locals))
+                     (setf locals (env:bind-2 (var (binder decl-entry)) (ann (binder decl-entry)) new-val locals)))))
               (setf prev-decl nil)
 
               (collect decl-entry)
               (collect (mk-entry (var entry) (mk-def (var entry) new-val)))))
-           (sigil-declaration
+           (silica-declaration
             (let ((decl (pop decls)))
               (when prev-decl
                 (error "Can't have two declarations in a row"))
               (unless (α-r= entry decl env) ;; TODO: substitute value!
                 (error "Can't deal with declarations in structures (σ)"))
               (setf prev-decl decl)
-              (setf locals (bind (var (binder decl)) (ann (binder decl)) locals)))))))))
+              (setf locals (env:bind (var (binder decl)) (ann (binder decl)) locals)))))))))
 
-  (:method ((term conditional) (type sigil-type) env)
+  (:method ((term conditional) (type silica-type) env)
     (let* ((test (check (test term) (mk-native 'boolean) env))
            (if-true (check (if-true term) type env))
            (if-false (check (if-false term) type env)))
       (mk-if test if-true if-false)))
 
-  (:method ((term projection) (type sigil-type) env)
-    (let* ((struct-result (infer (sigil-struct term) env))
+  (:method ((term projection) (type silica-type) env)
+    (let* ((struct-result (infer (silica-struct term) env))
            (struct-ty (car struct-result))
            (struct-val (cdr struct-result)))
       (if (α-r= (get-field struct-ty (field term)) type env)
@@ -209,6 +220,24 @@
            (mk-tapp lv right-val)))
         (t (error "Applying to neither function or abstraction")))))
 
+  (:method ((term pattern-match) (type silica-type) env)
+    (destructuring-bind (val-ty . value)
+        (infer (term term) env)
+
+      ;; Check patterns
+      (mk-match
+       value
+       (iter (for clause in (clauses term))
+
+         ;; First, get pattern variables
+         (destructuring-bind (new-pattern . locals) (extract-pattern (pattern clause) val-ty env)
+           ;; second, check body
+           (collect
+               (make-instance
+                'match-clause
+                :pattern new-pattern
+                :body (check (body clause) type (env:join locals env)))))))))
+
   ;; Kind Checking
   (:method ((type native-type) (kind kind-type) env) type)
 
@@ -230,19 +259,20 @@
             (var ctor)
             (check (ann ctor) (mk-kind) env))))))
 
+
   (:method ((type forall) (kind kind-type) env)
     (let ((kind (if-slot (vkind type 'var-kind) vkind (mk-kind))))
      (mk-∀ (var type) kind
-           (check (body type) (mk-kind) (bind (var type) kind env)))))
+           (check (body type) (mk-kind) (env:bind (var type) kind env)))))
 
   ;; Failure cases
-  (:method ((term term) (type sigil-type) env)
+  (:method ((term term) (type silica-type) env)
     (error (format nil "Failed to typecheck term ~A as type ~A~%" term type)))
 
-  (:method ((type sigil-type) (kind kind) env)
+  (:method ((type silica-type) (kind kind) env)
     (error (format nil "Failed to typecheck type ~A as kind ~A~%" type kind)))
 
-  (:method ((type-1 sigil-type) (type-2 sigil-type) env)
+  (:method ((type-1 silica-type) (type-2 silica-type) env)
     (error (format nil "Failed to typecheck type ~A as type ~A~%" type-1 type-2)))
 
   (:method ((term term) (kind kind) env)
@@ -250,52 +280,52 @@
     not have kinds!" term kind))))
 
 
-(declaim (ftype (function (t t) (or (cons term sigil-type) (cons sigil-type kind))) infer))
+(declaim (ftype (function (t t) (or (cons term silica-type) (cons silica-type kind))) infer))
 (defgeneric infer (term env)
 
   (:method ((term lisp-form) env)
     (cons (ty-eval (form-type term) env)
         term))
 
-  (:method ((term sigil-literal) env)
+  (:method ((term silica-literal) env)
     (cons 
      (mk-native
       ;; TODO: formalize somewhere the default inference/correspondence
-      ;; lisp type ↔ sigil type
+      ;; lisp type ↔ silica type
       (type-of (val term)))
      term))
 
   (:method ((term var) env)
-    (let ((ty (lookup (var term) env)))
+    (let ((ty (env:lookup (var term) env)))
       (if ty
           (cons ty
                 (typecase ty
                   (kind (mk-tvar (var term)))
-                  (sigil-type (mk-mvar (var term)))))
+                  (silica-type (mk-mvar (var term)))))
           (error (format nil "No type found in environment for variable ~A"
                          (var term))))))
   
   (:method ((term type-var) env)
-    (let ((ty (lookup (var term) env)))
+    (let ((ty (env:lookup (var term) env)))
       (if ty
           (cons ty term)
           (error (format nil "No type found in environment for variable ~A"
                          (var term))))))
 
   (:method ((term term-var) env)
-    (let ((ty (lookup (var term) env)))
+    (let ((ty (env:lookup (var term) env)))
       (if ty
           (cons ty term)
           (error (format nil "No type found in environment for variable ~A"
                          (var term))))))
 
-  (:method ((term sigil-lambda) env)
+  (:method ((term silica-lambda) env)
     (if (slot-boundp term 'var-type)
         (let* ((arg-ty (if (typep (var-type term) 'kind)
                            (ty-eval (var-type term) env)
                            (check (ty-eval (var-type term) env) (mk-kind) env)))
                (body-result (infer (body term)
-                                   (bind (var term) arg-ty env))))
+                                   (env:bind (var term) arg-ty env))))
           (if
            (typep arg-ty 'kind)
            (cons
@@ -310,7 +340,7 @@
     ;; TODO: kind polymorphism
     (let* ((kind (if (slot-boundp term 'var-kind) (var-kind term) (mk-kind)))
            (body-result (infer (body term)
-                               (bind (var term) kind env))))
+                               (env:bind (var term) kind env))))
       (cons 
        (mk-∀ (var term) (car body-result))
        (mk-abs (var term) kind (cdr body-result)))))
@@ -342,7 +372,7 @@
                     (var-kind lt) rt)))
         (t (error "Applying to neither function or abstraction of type: ~A" (show lt))))))
 
-  (:method ((term sigil-struct) env)
+  (:method ((term silica-struct) env)
     (labels ((has-repeating-field (list)
                (cond
                  ((null list) nil)
@@ -352,29 +382,28 @@
       ;; If it has repeating fields, typecheck fails
       (when (has-repeating-field
              (iter (for entry in (entries term))
-               (when (typep (binder entry) 'sigil-definition)
+               (when (typep (binder entry) 'silica-definition)
                  (collect (var entry)))))
         (error "Repeating definitions in term: ~A" term))
 
       (iter (for entry in (entries term))
         (for binder = (binder entry))
         ;; locals = local declarations
-        (with locals = +empty-env+)
+        (with locals = env:+empty+)
         (with prev-decl = nil)
         ;; (with type-vals = nil)
         (typecase binder
-          (sigil-definition
+          (silica-definition
            (let* ((new-entry
                     (if prev-decl 
-                        (let ((ty (ty-eval (ann (binder prev-decl)) (join locals env))))
-                          (format t "ty: ~A~%" ty)
+                        (let ((ty (ty-eval (ann (binder prev-decl)) (env:join locals env))))
                           (cons ty
                                 (check (var-recur (var binder) (val binder))
                                        ty
-                                       (join locals env))))
+                                       (env:join locals env))))
                         (infer
                          (val (binder entry))
-                         (join locals env))))
+                         (env:join locals env))))
                   (new-ty (car new-entry))
                   (new-val (cdr new-entry)))
 
@@ -396,9 +425,9 @@
                into out-entries)
              (collect (mk-def (var binder) new-val) into out-entries)
              (setf prev-decl nil)))
-          (sigil-declaration
+          (silica-declaration
            (setf prev-decl entry)
-           (setf locals (bind (var binder) (ty-eval (ann binder) (join locals env)) locals))))
+           (setf locals (env:bind (var binder) (ty-eval (ann binder) (env:join locals env)) locals))))
         (finally (return
                    (cons
                     (mk-sig (li:map
@@ -421,7 +450,7 @@
        (mk-if test if-true if-false))))
 
   (:method ((term projection) env)
-    (let* ((struct-result (infer (sigil-struct term) env))
+    (let* ((struct-result (infer (silica-struct term) env))
            (struct-ty (car struct-result))
            (struct-val (cdr struct-result)))
       (cons 
@@ -440,8 +469,8 @@
   (:method ((type forall) env)
     (let* ((body-result 
             (if (slot-boundp type 'var-kind)
-                (infer (body type) (bind (var type) (var-kind type) env))
-                (infer (body type) (bind (var type) (mk-kind) env))))
+                (infer (body type) (env:bind (var type) (var-kind type) env))
+                (infer (body type) (env:bind (var type) (mk-kind) env))))
            (body-kind (car body-result))
            (body-type (cdr body-result)))
       (cons

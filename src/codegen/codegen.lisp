@@ -1,6 +1,6 @@
-(in-package :sigil)
+(in-package :silica)
 
-(defvar *sigil-modules* (make-hash-table))
+(defvar *silica-modules* (make-hash-table))
 
 
 (defgeneric reify (term context)
@@ -8,7 +8,7 @@
   appropriate semantics.")
   (:method ((term lisp-form) ctx)
     (form term))
-  (:method ((term sigil-lambda) ctx)
+  (:method ((term silica-lambda) ctx)
     "Reify a lambda term (λ x.e). These are converted into CL lambdas"
     `(lambda (,(var term))
        ,(reify (body term) (ctx:hide (var term) ctx))))
@@ -36,11 +36,11 @@ it to a funcall."
     (typecase (right term)
       (term
        `(funcall ,(reify (left term) ctx) ,(reify (right term) ctx)))
-      (sigil-type
+      (silica-type
        (reify (left term) ctx))))
 
 
-  (:method ((term sigil-struct) ctx)
+  (:method ((term silica-struct) ctx)
     "Reify a structure (struct (x₁ ≜ e₁) .. (xₙ ≜ eₙ)). We do this by
 constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (xₙ = eₙ)))"
     (labels
@@ -48,11 +48,11 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
            (iter (for def in defs)
              (with current-ctx = ctx)
 
-             (when (typep def 'sigil-definition)
+             (when (typep def 'silica-definition)
                (setf current-ctx (ctx:hide (var def) current-ctx))
 
                (cond
-                 ((or (typep (val def) 'sigil-lambda)
+                 ((or (typep (val def) 'silica-lambda)
                       (typep (val def) 'term-lambda))
                   (accumulate 
                       (list (var def)
@@ -82,7 +82,7 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
 
          (get-vars (entries)
            (iter (for entry in entries)
-             (when (typep (binder entry) 'sigil-definition)
+             (when (typep (binder entry) 'silica-definition)
                (accumulate
                 (var entry)
                 by #'cons
@@ -98,8 +98,8 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
              (finally (return (reverse out)))))
 
          (mk-hashmap (vars)
-           ;; We can safely use a non-hygenic macro, as all sigil code will only
-           ;; contain symbols in the *sigil-symbols* package.
+           ;; We can safely use a non-hygenic macro, as all silica code will only
+           ;; contain symbols in the *silica-symbols* package.
            `(let ((hashmap (make-hash-table :test #'eq)))
               ,@(iter (for var in vars)
                   (collect `(setf (gethash (quote ,var) hashmap) ,var)))
@@ -111,7 +111,7 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
 
   (:method ((term projection) ctx)
     "Reify a field access (s.f). Do do this by converting it to (gethash 'f s)"
-    `(gethash (quote ,(field term)) ,(reify (sigil-struct term) ctx)))
+    `(gethash (quote ,(field term)) ,(reify (silica-struct term) ctx)))
 
   (:method ((term conditional) ctx)
     "Reify a conditional (if e1 e2 e3). Do do this by converting it to the
@@ -125,7 +125,7 @@ common lisp (if e1 e2 e3)"
       val
       term))
 
-  (:method ((term sigil-literal) ctx) (val term))
+  (:method ((term silica-literal) ctx) (val term))
   (:method (term ctx) term))
 
 (defun fix (f)
@@ -145,14 +145,14 @@ common lisp (if e1 e2 e3)"
 ;;     ((,name (,(var term))
 ;;        ,(reify (body term) (ctx:hide (var term) ctx))))))
 
-(declaim (ftype (function (sigil-type) integer) calc-arity))
+(declaim (ftype (function (silica-type) integer) calc-arity))
 (defun calc-arity (ty)
   (typecase ty
     (arrow (+ 1 (calc-arity (to ty))))
     (forall (calc-arity (body ty)))
     (t 0)))
 
-(declaim (ftype (function (sigil-declaration) t) reify-ctor))
+(declaim (ftype (function (silica-declaration) t) reify-ctor))
 (defun reify-ctor (decl)
   (list
    (var decl)
@@ -166,7 +166,7 @@ common lisp (if e1 e2 e3)"
              `(lambda (,sym) ,body))
         initial-value
         `(make-instance
-          'sigil/impl:sigil-inductive-value
+          'silica/impl:silica-inductive-value
           :values (make-array ,arity :initial-contents (list ,@vars))
           :name (quote ,(var decl))))))))
 

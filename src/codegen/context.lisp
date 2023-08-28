@@ -1,4 +1,4 @@
-(defpackage sigil/context
+(defpackage silica/context
   (:use :cl :iter :alexandria)
   (:nicknames :ctx)
   (:export

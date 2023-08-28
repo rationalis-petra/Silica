@@ -1,10 +1,10 @@
-(in-package :sigil)
+(in-package :silica)
 
 
 (defun base-path (path)
   (asdf:system-relative-pathname
-   :sigil
-   (concatenate 'string "src/base/" path ".sgl")))
+   :silica
+   (concatenate 'string "src/base/" path ".sio")))
 
 ;; Load the base library
 (defun load-base-module (name path package)
@@ -28,7 +28,7 @@
   "A hacky solution (while quartz is under development) for loading in the base
 package for use in other projects/packages."
   (let ((base (make-instance
-               'sigil-package
+               'silica-package
                :name (sym "base")
                :exported-modules
                (list

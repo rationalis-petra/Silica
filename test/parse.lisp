@@ -1,4 +1,4 @@
-(in-package :sigil-tests)
+(in-package :silica-tests)
 
 (define-test parsing
   :parent all

@@ -1,11 +1,11 @@
-(defpackage sigil
+(defpackage silica
   (:use :cl :trivia :iter :alexandria :lang-extensions)
   (:export
-   ;; get sigil values from CL
+   ;; get silica values from CL
    :run-main
-   :get-sigil-val
+   :get-silica-val
 
-   :*sigil-modules*
+   :*silica-modules*
 
    ;; Readtables
    :classic

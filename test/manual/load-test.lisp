@@ -1,12 +1,12 @@
-(in-package :sigil)
+(in-package :silica)
 
 
 ;; laod the base library
 
 (defun test-path (path)
   (asdf:system-relative-pathname
-   :sigil
-   (concatenate 'string "test/manual/" path ".sgl")))
+   :silica
+   (concatenate 'string "test/manual/" path ".sio")))
 
 (defun load-test-module (name path package)
   (with-open-file (file (test-path path))
@@ -28,7 +28,7 @@
   "A hacky solution (while quartz is under development) for loading in the base
 package for use in other projects/packages."
   (let ((test (make-instance
-               'sigil-package
+               'silica-package
                :name (sym "test")
                :dependencies (list (sym "base"))
                :exported-modules (list (sym "test")))))

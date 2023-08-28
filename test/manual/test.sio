@@ -1,0 +1,52 @@
+
+(module test
+  (import
+    num.(int unit bool).(…)
+    text.(…)
+    io.(…)
+    console.(…)))
+
+⍝ Boolean
+(myBool ⮜ Bool)
+(myBool ≜ true)
+
+⍝ An expression type
+(Expr ⮜ τ → τ)
+(Expr ≜ Φ 
+  (or ⮜ Expr Bool → Expr Bool → Expr Bool)
+  (any ⮜ ∀ (α) (α → Expr α)))
+
+(myExpr ⮜ Expr Bool)
+(myExpr ≜ or (any Bool true) (any Bool false))
+
+(evalB ⮜ Expr Bool → Bool)
+(evalB expr ≜ φ expr 
+  (any b → b)
+  (or l r → (eval l ∨ eval r)))
+
+;; (eval ⮜ ∀ α (Expr α → α))
+;; (eval ⟨α⟩ expr ≜ φ expr 
+;;   (any b → b)
+;;   (or l r → (eval l ∨ eval r)))
+
+⍝ factorial function
+(fact ⮜ ℤ → ℤ)
+(fact n ≜ 
+  if (n ≤ 0) 1 (n × fact (n - 1)))
+
+⍝ make the pair (5, 5!)
+(pr ⮜ Σ (x ⮜ ℤ) (y ⮜ ℤ))
+(pr ≜ σ (x ≜ 5) (y ≜ fact 5))
+
+⍝ get the second element of the pair (5! = 120) 
+(result ⮜ ℤ)
+(result ≜ pr.y)
+
+⍝ test sequencing
+(main ⮜ IO Unit)
+(main ≜ 
+  seq Unit Unit
+   (print "what's your name? ")
+   (bind Text Unit
+    readLine
+    (λ ((t ⮜ Text)) (print ("Hello, " ⋅ t)))))

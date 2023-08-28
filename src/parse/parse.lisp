@@ -1,12 +1,12 @@
-(in-package :sigil)
+(in-package :silica)
 
-;; Parse a lisp-style syntax tree into an Sigil abstract syntax tree
+;; Parse a lisp-style syntax tree into an silica abstract syntax tree
 ;; 
-(defpackage :sigil-symbols
-  (:nicknames :sym :sigil-user)
+(defpackage :silica-symbols
+  (:nicknames :sym :silica-user)
   (:export "λ" "Λ" "π" "σ" "Σ" "∀" "→" "≜" "◂" "lisp"))
 
-(defun sym (name) (intern name :sigil-symbols))
+(defun sym (name) (intern name :silica-symbols))
 
 (defvar *arrow-sym* (sym "→"))
 (defvar *forall-sym* (sym "∀"))
@@ -101,7 +101,7 @@
     (every #'special? (string val))))
 
 
-(declaim (ftype (function (list) (or sigil-declaration sigil-definition)) to-def))
+(declaim (ftype (function (list) (or silica-declaration silica-definition)) to-def))
 (defun to-def (definition)
   "Produce a definition from a boi"
   (let ((name (if (listp (cadr definition))
@@ -140,7 +140,7 @@
               (funcall func (get-var decl) body))
              (t
               (let ((decl2 (to-def decl)))
-                (assert (typep decl2 'sigil-declaration))
+                (assert (typep decl2 'silica-declaration))
                 (funcall func (var decl2) (ann decl2) body))))))
   (match (cadr term)
     ((type symbol) (funcall abstractor (cadr term) (to-ast (caddr term))))
@@ -150,7 +150,7 @@
                    (reverse (cadr term))))))))
 
 (defun to-ast (term)
-  "Take a raw concrete ast (represented as a list), and convert it into an sigil
+  "Take a raw concrete ast (represented as a list), and convert it into an silica
 syntax-tree."
   (match term
     ((type keyword)
@@ -171,6 +171,10 @@ syntax-tree."
        ((inductive-sym? (first term))
         (make-instance 'inductive-type
          :constructors (li:map #'to-def (rest term))))
+       ((match-sym? (first term))
+        (mk-match
+         (to-ast (elt term 1))
+         (li:map #'to-match-clause (li:drop 2 term))))
        ((struct-sym? (first term))
         (mk-struct
          (li:map (lambda (def)
@@ -198,7 +202,7 @@ syntax-tree."
         (let ((left (to-ast (cadr term)))
               (right (to-ast (caddr term))))
           (typecase (cons left right)
-            ((cons sigil-type sigil-type) (mk-arr left right))
+            ((cons silica-type silica-type) (mk-arr left right))
             ((cons kind kind) (mk-karr left right))
             (t (error "→ expects either two kinds or two types")))))
        (t
@@ -208,6 +212,7 @@ syntax-tree."
     ((type string) (mk-val term))
     ;; Possibly remove above??
     (_ (error (format nil "failed to match:~A" term)))))
+
 
 
 (defun point-tighten (term)
@@ -260,5 +265,11 @@ that infix operations are moved prefix. For example '(2 + a) is converted to
 ;;   (module submodule :wildcard)
 ;;   (math (x y z)))
 
+(defun to-match-clause (term)
+  (unless (eq *arrow-sym* (first term))
+    (error (format nil "Match clause expects →, got ~A" (first term))))
 
-
+  (make-instance
+   'match-clause
+   :pattern (elt term 1)
+   :body (to-ast (elt term 2))))

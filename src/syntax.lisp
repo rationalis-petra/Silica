@@ -1,19 +1,19 @@
-(in-package :sigil)
+(in-package :silica)
 
 
 ;; Modules (toplevel constructs)
 (defclass module ()
   ((opl-imports)
    (opl-exports)
-   (sigil-struct)))
+   (silica-struct)))
 
 ;; 'untyped' terms; 
-(defclass var (term sigil-type)
+(defclass var (term silica-type)
   ((var
     :type symbol
     :reader var
     :initarg :var)))
-(defclass app (term sigil-type)
+(defclass app (term silica-type)
   ((left
     :type term
     :reader left
@@ -22,13 +22,13 @@
     :type (or term type)
     :reader right
     :initarg :right)))
-(defclass sigil-lambda (term sigil-type)
+(defclass silica-lambda (term silica-type)
   ((var
     :type symbol
     :reader var
     :initarg :var)
    (var-type
-    :type (or sigil-type kind)
+    :type (or silica-type kind)
     :reader var-type
     :initarg :var-type)
    (body
@@ -44,7 +44,7 @@
     :reader var
     :initarg :var)
    (binder
-    :type (or sigil-declaration sigil-definition)
+    :type (or silica-declaration silica-definition)
     :reader binder
     :initarg :binder)))
 
@@ -62,7 +62,7 @@
     :initarg :name))
   (:documentation "A label is like a symbol, but it refers to a value in an
   imported module, allowing for modules to be renamed"))
-;; (defclass term-app (term sigil-type)
+;; (defclass term-app (term silica-type)
 ;;   ((left
 ;;     :type term
 ;;     :reader left
@@ -77,20 +77,20 @@
     :reader form
     :initarg :form)
    (form-type
-    :type sigil-type
+    :type silica-type
     :reader form-type
     :initarg :form-type)
    (bound-vars
     :type list
     :reader bound-vars
     :initarg :bound-vars)))
-(defclass sigil-literal (term)
+(defclass silica-literal (term)
   ((val
     :type t
     :reader val
     :initarg :val)
    (val-type
-    :type sigil-type
+    :type silica-type
     :reader val-type
     :initarg :val-type)))
 ;; Lambda Related
@@ -100,7 +100,7 @@
     :reader var
     :initarg :var)
    (var-type
-    :type (or sigil-type kind)
+    :type (or silica-type kind)
     :reader var-type
     :initarg :var-type)
    (body
@@ -122,15 +122,15 @@
     :initarg :body)))
 
 ;; Structure related
-(defclass sigil-struct (term)
+(defclass silica-struct (term)
   ((entries
     :type list
     :reader entries
     :initarg :entries)))
 (defclass projection (term)
-  ((sigil-struct
+  ((silica-struct
     :type term
-    :reader sigil-struct
+    :reader silica-struct
     :initarg :structure)
    (field
     :type symbol
@@ -140,7 +140,7 @@
 ;; Recursive datatype-related
 (defclass inductive-ctor (term)
   ((val-type
-    :type sigil-type
+    :type silica-type
     :reader val-type
     :initarg :val-type)
    (name
@@ -148,11 +148,23 @@
     :reader name
     :initarg :name)))
 
+(defclass match-clause ()
+  ((body
+    :type term
+    :reader body
+    :initarg :body)
+   (pattern
+    :reader pattern
+    :initarg :pattern)))
 (defclass pattern-match (term)
-  ((clauses
+  ((term
+    :type term
+    :reader term
+    :initarg :term)
+   (clauses
     :type list
     :reader clauses
-    :initarg clauses)))
+    :initarg :clauses)))
 
 ;; (defclass inductive-val (term)
 ;;   ((constructor
@@ -180,36 +192,36 @@
     :initarg :if-false)))
 
 
-(defclass sigil-type () ())
-(defclass type-var (sigil-type)
+(defclass silica-type () ())
+(defclass type-var (silica-type)
   ((var
     :type symbol
     :reader var
     :initarg :var)))
-(defclass native-type (sigil-type)
+(defclass native-type (silica-type)
   ((native-type
     :type t
     :reader native-type
     :initarg :native-type)))
-(defclass arrow (sigil-type)
+(defclass arrow (silica-type)
   ((from
-    :type sigil-type
+    :type silica-type
     :reader from
     :initarg :from)
    (to
-    :type sigil-type
+    :type silica-type
     :reader to
     :initarg :to)))
-(defclass tapp (sigil-type)
+(defclass tapp (silica-type)
   ((left
-    :type sigil-type
+    :type silica-type
     :reader left
     :initarg :left)
    (right
-    :type sigil-type
+    :type silica-type
     :reader right
     :initarg :right)))
-(defclass forall (sigil-type)
+(defclass forall (silica-type)
   ((var
     :type symbol
     :reader var
@@ -220,7 +232,7 @@
     :initarg :var-kind
     :initform (mk-kind))
    (body
-    :type sigil-type
+    :type silica-type
     :reader body
     :initarg :body)))
 (defclass type-lambda (term)
@@ -236,12 +248,12 @@
     :type term
     :reader body
     :initarg :body)))
-(defclass signature (sigil-type)
+(defclass signature (silica-type)
   ((entries
     :type list
     :reader entries
     :initarg :entries)))
-(defclass inductive-type (sigil-type)
+(defclass inductive-type (silica-type)
   ((var
     :type symbol
     :reader var
@@ -270,7 +282,7 @@
 
 ;; Untyped declarations and definitions
 ;; these are replaced with either type or val declarations or definitions during typechecking.
-(defclass sigil-declaration ()
+(defclass silica-declaration ()
   ((var
     :type symbol
     :reader var
@@ -279,7 +291,7 @@
     :type t
     :reader ann
     :initarg :ann)))
-(defclass sigil-definition ()
+(defclass silica-definition ()
   ((var
     :type symbol
     :reader var
@@ -291,9 +303,9 @@
 
 ;; Declaration constructors
 (defun mk-decl (var ann)
-  (make-instance 'sigil-declaration :var var :ann ann))
+  (make-instance 'silica-declaration :var var :ann ann))
 (defun mk-def (var val)
-  (make-instance 'sigil-definition :var var :val val))
+  (make-instance 'silica-definition :var var :val val))
 (defun mk-entry (var bind)
   (make-instance 'entry :var var :binder bind))
 
@@ -323,9 +335,9 @@
   (make-instance 'lisp-form :form-type type :form form))
 (defun mk-λ (var snd &optional body)
   (if body
-      (make-instance 'sigil-lambda
+      (make-instance 'silica-lambda
                      :var var :var-type snd :body body)
-      (make-instance 'sigil-lambda :var var :body snd)))
+      (make-instance 'silica-lambda :var var :body snd)))
 (defun mk-tλ (var snd &optional body)
   (if body
       (make-instance 'type-lambda
@@ -349,7 +361,7 @@
 (defun mk-app (left right)
   (make-instance 'app :left left :right right))
 (defun mk-struct (defs)
-  (make-instance 'sigil-struct :entries defs)) 
+  (make-instance 'silica-struct :entries defs)) 
 
 (declaim (ftype (function (symbol (or kind list) &optional list) inductive-type) mk-induct))
 (defun mk-induct (var k-or-c &optional constructors)
@@ -362,6 +374,10 @@
                      :kind k-or-c
                      :constructors constructors)))
 
+(declaim (ftype (function (term list) pattern-match) mk-match))
+(defun mk-match (term clauses)
+  (make-instance 'pattern-match :term term :clauses clauses))
+
 (declaim (ftype (function (inductive-type symbol) inductive-ctor) mk-ctor))
 (defun mk-ctor (type name)
   (make-instance 'inductive-ctor
@@ -371,7 +387,7 @@
 (defun mk-proj (field struct)
   (make-instance 'projection :structure struct :field field))
 (defun mk-val (val)
-  (make-instance 'sigil-literal :val val))
+  (make-instance 'silica-literal :val val))
 (defun mk-if (test if-true if-false)
   (make-instance 'conditional :test test
                               :if-true if-true
@@ -381,15 +397,15 @@
   (:method ((term var)) t)
   (:method ((term type-var)) t)
   (:method ((term term-var)) t)
-  (:method ((term sigil-literal)) t)
+  (:method ((term silica-literal)) t)
   (:method ((term kind-type)) t)
   (:method (term) nil))
 
 (defgeneric get-field (term field)
-  (:method ((term sigil-struct) field)
+  (:method ((term silica-struct) field)
     (iter (for elt in (entries term))
       (when (and (eq (var elt) field)
-                 (typep (binder elt) 'sigil-definition))
+                 (typep (binder elt) 'silica-definition))
         (return (val (binder elt))))))
 
   (:method ((term signature) field)
@@ -404,11 +420,11 @@
 (defgeneric α= (l r &optional renamings shadowed)
   (:documentation "Predicate: return true if two terms equal up to α-renaming")
   ;; Terms 
-  (:method ((l sigil-literal) (r sigil-literal) &optional renamings shadowed)
+  (:method ((l silica-literal) (r silica-literal) &optional renamings shadowed)
     (declare (ignore renamings shadowed))
     (equal (val l) (val r)))
 
-  (:method ((l sigil-lambda) (r sigil-lambda) &optional renamings shadowed)
+  (:method ((l silica-lambda) (r silica-lambda) &optional renamings shadowed)
     (and 
      (or (and (not (slot-boundp l 'var-type)) (not (slot-boundp r 'var-type)))
          (α= (var-type l) (var-type r)))
@@ -445,7 +461,7 @@
          (cons (cons (var l) (car shadowed))
                (cons (var l) (car shadowed))))))
 
-  (:method ((l sigil-struct) (r sigil-struct) &optional renamings shadowed)
+  (:method ((l silica-struct) (r silica-struct) &optional renamings shadowed)
     (and 
      (iter (for elt-1 in (entries l))
            (for elt-2 in (entries r))
@@ -453,9 +469,9 @@
         (and (eq (var elt-1) (var elt-2))
              ;; todo: shadow variable bindings?
              (typecase (cons (binder elt-1) (binder elt-2))
-               ((cons sigil-declaration sigil-declaration)
+               ((cons silica-declaration silica-declaration)
                 (α= (binder elt-1) (binder elt-2) renamings shadowed))
-               ((cons sigil-definition sigil-definition)
+               ((cons silica-definition silica-definition)
                 (α= (binder elt-1) (binder elt-2) renamings shadowed))))))
      (= (length (entries l)) (length (entries r)))))
 
@@ -524,14 +540,14 @@
      (= (length (entries l)) (length (entries r)))))
 
   ;; Equality of defs/decls
-  (:method ((l sigil-definition) (r sigil-definition)
+  (:method ((l silica-definition) (r silica-definition)
             &optional renamings shadowed)
     (α= (val l) (val r)
         (acons (var l) (var r) renamings)
         (cons (cons (var l) (car shadowed))
               (cons (var r) (cdr shadowed)))))
 
-  (:method ((l sigil-declaration) (r sigil-declaration)
+  (:method ((l silica-declaration) (r silica-declaration)
             &optional renamings shadowed)
     (α= (ann l) (ann r)
         (acons (var l) (var r) renamings)
@@ -617,14 +633,14 @@
      (= (length (entries l)) (length (entries r)))))
 
   ;; Equality of defs/decls
-  (:method ((l sigil-definition) (r sigil-definition)
+  (:method ((l silica-definition) (r silica-definition)
             &optional renamings shadowed)
     (α<= (val l) (val r)
          (acons (var l) (var r) renamings)
          (cons (cons (var l) (car shadowed))
                (cons (var r) (cdr shadowed)))))
 
-  (:method ((l sigil-declaration) (r sigil-declaration)
+  (:method ((l silica-declaration) (r silica-declaration)
             &optional renamings shadowed)
     (α<= (ann l) (ann r)
          (acons (var l) (var r) renamings)
@@ -646,11 +662,11 @@
     (α= l r renamings shadowed))
 
   ;; otherwise: false
-  (:method ((l sigil-type) (r sigil-type) &optional renamings shadowed)
+  (:method ((l silica-type) (r silica-type) &optional renamings shadowed)
     (declare (ignore l r renamings shadowed))
     nil))
 
-(declaim (ftype (function ((or term kind sigil-type)
+(declaim (ftype (function ((or term kind silica-type)
                            &optional (function (t) boolean))
                           string)
                 mparen))
@@ -663,7 +679,7 @@
 (defgeneric show (val)
   (:documentation "Pseudo pretty-print method")
 
-  (:method ((val sigil-literal))
+  (:method ((val silica-literal))
     (format nil "~A" (val val)))
 
   (:method ((val lisp-form))
@@ -683,7 +699,14 @@
       (write-string (mparen (right val)) stream)
       (get-output-stream-string stream)))
 
-  (:method ((val sigil-lambda))
+  (:method ((val pattern-match))
+    (let ((stream (make-string-output-stream)))
+      (format stream "φ ~A" (show (term val)))
+      (iter (for clause in (clauses val))
+        (format stream " (~A → ~A)" (pattern clause) (show (body clause))))
+      (get-output-stream-string stream)))
+
+  (:method ((val silica-lambda))
     (format nil "λ ~A. ~A" (var val) (show (body val))))
   (:method ((val type-lambda))
     (format nil "tλ ~A. ~A" (var val) (show (body val))))
@@ -693,17 +716,17 @@
   (:method ((val abstract))
     (format nil "Λ ~A. ~A" (var val) (show (body val))))
 
-  (:method ((val sigil-struct))
+  (:method ((val silica-struct))
     (let ((stream (make-string-output-stream)))
       (write-string "(σ" stream )
       (iter (for entry in (entries val))
         (typecase (binder entry)
-          (sigil-declaration
+          (silica-declaration
            (format stream " (~A(~A) ⮜ ~A)"
                    (var entry)
                    (var (binder entry))
                    (show (ann (binder entry)))))
-          (sigil-definition
+          (silica-definition
            (format stream " (~A(~A) ≜ ~A)"
                    (var entry)
                    (var (binder entry))
@@ -719,7 +742,7 @@
 
   (:method ((val projection))
     (format nil "~A⋅~A"
-            (mparen (sigil-struct val))
+            (mparen (silica-struct val))
             (field val)))
 
 
@@ -769,10 +792,10 @@
   (:method ((kind kind-arrow))
     (format nil "(~A → ~A)" (show (from kind)) (show (to kind))))
 
-  (:method ((decl sigil-declaration))
+  (:method ((decl silica-declaration))
     (format nil "(~A ⮜ ~A)"  (var decl) (show (ann decl))))
 
-  (:method ((defn sigil-definition))
+  (:method ((defn silica-definition))
     (format nil "(~A ≜ ~A)"  (var defn) (show (val defn))))
 
   (:method (unknown)
@@ -782,15 +805,15 @@
 (defmethod print-object ((term term) stream)
   (format stream "#<term ~A>" (show term)))
 
-(defmethod print-object ((type sigil-type) stream)
+(defmethod print-object ((type silica-type) stream)
   (format stream "#<type ~A>" (show type)))
 
 (defmethod print-object ((kind kind) stream)
   (format stream "#<kind ~A>" (show kind)))
 
-(defmethod print-object ((decl sigil-declaration) stream)
+(defmethod print-object ((decl silica-declaration) stream)
   (format stream "#<decl ~A>" (show decl)))
 
-(defmethod print-object ((def sigil-definition) stream)
+(defmethod print-object ((def silica-definition) stream)
   (format stream "#<def ~A>" (show def)))
 
