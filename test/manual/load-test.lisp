@@ -1,6 +1,5 @@
 (in-package :silica)
 
-
 ;; laod the base library
 
 (defun test-path (path)
@@ -14,7 +13,7 @@
            (build-output (build-module package module-raw)))
       (setf (gethash name (modules package))
             (make-instance
-             'module
+             'moduleterm
              :name name
              :source (test-path path)
              :signature (al:lookup :type build-output) 

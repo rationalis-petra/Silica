@@ -161,10 +161,10 @@
 (defun ty-eval (type env)
   (let* ((vals
            (al:<>
-            (iter (for entry in (env:env-vals env))
-              (when (cdr entry) (collect entry)))
+            (iter (for (var . entry) in (env:env-locals env))
+              (when (elt entry 1) (collect (cons var (elt entry 1)))))
             (iter (for (key val) in-hashtable (env:env-base env))
-              (when (consp val) (collect (cons key (cdr val)))))))
+              (when (elt val 1) (collect (cons key (elt val 1)))))))
          (val (ty-reduce (ty-subst type vals))))
     val))
 
@@ -225,7 +225,7 @@ For usage in modules and structures"
              (cons
               (var ctor)
               (ty-subst (ann ctor) (al:make ((var value) . value))))
-             by (lambda (c l) (env:bind-2 (car c) (cdr c) (mk-ctor value (var ctor)) l))
+             by (lambda (c l) (env:bind (car c) (cdr c) l))
              initial-value locals))
           locals)))))
 

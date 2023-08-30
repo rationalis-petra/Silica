@@ -34,12 +34,14 @@
 ;; 
 (in-package :silica)
 
+
 (declaim (ftype (function (stream) null) consume-line))
 (defun consume-line (stream)
   (iter (while
          (or
           (not (peek-char nil stream nil nil))
           (char/= (read-char stream) #\newline)))))
+
 
 (declaim (ftype (function (character) boolean) whitespace?))
 (defun whitespace? (char)
@@ -50,6 +52,7 @@
       t
       nil))
 
+
 (declaim (ftype (function (character) boolean) symchar?))
 (defun symchar? (char)
   (not (or
@@ -57,9 +60,11 @@
         (char= char #\()
         (char= char #\)))))
 
+
 (declaim (ftype (function (character) boolean) numchar?))
 (defun numchar? (char)
   (equal "Nd" (cl-unicode:general-category char)))
+
 
 (declaim (ftype (function (stream) symbol) parse-symbol))
 (defun parse-symbol (stream)
@@ -71,12 +76,14 @@
       (write-char (read-char stream) os))
     (intern (get-output-stream-string os) :silica-symbols)))
 
+
 (declaim (ftype (function (stream) t) parse-atom))
 (defun parse-atom (stream)
   (let ((char (peek-char nil stream)))
     (cond 
       ((numchar? char) (read stream))
       (t (parse-symbol stream)))))
+
 
 (declaim (ftype (function (stream) string) parse-string))
 (defun parse-string (stream)
@@ -86,7 +93,6 @@
       (write-char (read-char stream) os))
     (read-char stream)
     (get-output-stream-string os)))
-
 
 
 (declaim (ftype (function (stream) list) parse-list))
@@ -99,6 +105,7 @@
        (return output))
       (:end (return output))
       (_ (collect (parse-expr stream) into output)))))
+
 
 (declaim (ftype (function (stream) list) parse-list))
 (defun parse-sexpr (stream)
@@ -133,6 +140,7 @@
     (:end (error "eof when parsing expr"))
     (_ (parse-atom stream))))
 
+
 (declaim (ftype (function (stream) t) parse-file))
 (defun parse-file (stream)
   (iter (while t)
@@ -141,13 +149,14 @@
       (#\⍝ (consume-line stream))
       (_ (collect (parse-expr stream) into output)))))
 
-;;(defun raw-module (sexpr) sexpr)
 
+;;(defun raw-module (sexpr) sexpr)
 (defun raw-module (sexpr)
   (al:<>
    (module-header (first sexpr))
    (al:make
     (:body . (rest sexpr)))))
+
 
 (defun module-header (header)
   "Parse a module header"

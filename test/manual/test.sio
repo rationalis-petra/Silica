@@ -10,6 +10,7 @@
 (myBool ⮜ Bool)
 (myBool ≜ true)
 
+⍝ TODO: catch bad expressions!
 ⍝ An expression type
 (Expr ⮜ τ → τ)
 (Expr ≜ Φ 
@@ -19,15 +20,15 @@
 (myExpr ⮜ Expr Bool)
 (myExpr ≜ or (any Bool true) (any Bool false))
 
-(evalB ⮜ Expr Bool → Bool)
-(evalB expr ≜ φ expr 
-  (any b → b)
-  (or l r → (eval l ∨ eval r)))
+⍝ (evalB ⮜ Expr Bool → Bool)
+⍝ (evalB expr ≜ φ expr 
+⍝   (any ⟨α⟩ b → b)
+⍝   (or l r → (eval l ∨ eval r)))
 
-;; (eval ⮜ ∀ α (Expr α → α))
-;; (eval ⟨α⟩ expr ≜ φ expr 
-;;   (any b → b)
-;;   (or l r → (eval l ∨ eval r)))
+⍝ (eval ⮜ ∀ α (Expr α → α))
+⍝ (eval ⟨α⟩ expr ≜ φ expr 
+⍝   (any b → b)
+⍝   (or l r → (eval l ∨ eval r)))
 
 ⍝ factorial function
 (fact ⮜ ℤ → ℤ)

@@ -184,7 +184,7 @@ modular recompilation. "))
       (ecase type
         (:module (module-export-types val))
         (:atom (atom-export-types val))))
-    (lambda (module) (signature module))
+    (lambda (module) (list (signature module) nil nil))
     (lambda (atom) (al:lookup :type atom)))))
 
 (declaim (ftype (function (hash-table list) ctx:context) gen-ctx))
@@ -303,43 +303,31 @@ modular recompilation. "))
        (return imported-values)))))
 
 (defun module-export-types (module)
-  "Get all exported types from a module as a list ((name type) (name type) ...)
+  "Get all exported types from a module as a list
+    ((name (type ?val ctor)) (name (type ?val ctor)) ...)
 we assume no collisions (this should be checked by the exporting module)"
 
   (iter (for symbol in (exports module))
     (let ((tipe (get-field (signature module) symbol)))
-      (typecase tipe
-        (kind
-         (collect
-             (list symbol
-                   (al:make
-                    (:type . (cons tipe
-                                 (get-field (internal-struct module) symbol)))
-                    (:val . (get-field (internal-struct module) symbol))))))
-         (t (collect
-                (list symbol
-                      (al:make
-                       (:type . tipe)
-                       (:val . (get-field (internal-struct module) symbol))))))))))
+      (collect
+          (list symbol
+                (al:make
+                 (:type . (list tipe
+                                (get-field (internal-struct module) symbol) nil))
+                 (:val . (get-field (internal-struct module) symbol))))))))
 
 (defun atom-export-types (atom)
   "Get all exported types from an atom (signature) as a list ((name type) (name
   type) ...). Any non-sealed types are exported as (name (kind . type)), while
   sealed types are exported as (name . kind)."
-  (iter (for entry in (entries (al:lookup :type atom)))
-    (let ((type (get-field (al:lookup :type atom) (var entry))))
-      (typecase type
-        (kind
-         (collect
-             (list (var entry)
-                   (al:make 
-                    (:type . (cons type (get-field (al:lookup :val atom) (var entry))))
-                    (:val . (get-field (al:lookup :val atom) (var entry)))))))
-        (t (collect
-               (list (var entry)
-                     (al:make
-                      (:type . type)
-                      (:val . (get-field (al:lookup :val atom) (var entry)))))))))))
+  (iter (for entry in (entries (elt (al:lookup :type atom) 0)))
+    (let ((type (get-field (first (al:lookup :type atom)) (var entry))))
+      (collect
+          (list (var entry)
+                (al:make 
+                 (:type .
+                        (list type (get-field (al:lookup :val atom) (var entry)) nil))
+                 (:val . (get-field (al:lookup :val atom) (var entry)))))))))
 
 
 (defun module-export-values (module)

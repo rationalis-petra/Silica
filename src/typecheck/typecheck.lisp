@@ -1,5 +1,6 @@
 (in-package :silica)
 
+
 (define-condition unexpected-type (error)
   ((message
     :type string

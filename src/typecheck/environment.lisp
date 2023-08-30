@@ -5,90 +5,81 @@
    :silica-type :kind)
 
   (:export
-   :env :env-base :env-vals :env-vars
+   :env :env-base :env-locals
    :+empty+ :join
    :bind :bind-2 :bind-existing-val
    :make-from
    :lookup))
 (in-package :silica/environment)
 
+
 (defstruct env
   "Represents a type checking environment. Consists of three components:
- • Vars: an alist which holds the type (or kind) of locally bound variables
- • Vals: an alist which holds the type value of any variable with a kind,
-   e.g. Bool = native/Boolean
+ • Locals: an alist which holds the type (or kind) of locally bound variables,
+   along with their value (if known) and whether or not it is a constructor (and
+   thus defined a pattern). 
  • Base: The 'base' of the environment, which is usually not modified after
    creation. Represents, e.g. a set of definitions that were imported into a
    module."
-  base vars vals)
 
+  base locals)
 
-(declaim (ftype (function (symbol hash-table) (or silica-type kind)) lookup-base))
-(defun lookup-base (var table)
-  (let ((res (ht:lookup var table)))
-    (typecase res
-      (cons (car res))
-      (t res))))
+(declaim (type env +empty+))
+(defparameter +empty+ (make-env :base (ht:empty) :locals nil))
+;; Local (var ↦ (ty (or val nil) is-ctor))
+;; Base  (var ↦ (ty (or val nil) is-ctor))
 
-(declaim (ftype (function (symbol hash-table) silica-type) lookup-base))
-(defun lookup-base-val (var table)
-  (let ((res (ht:lookup var table)))
-    (typecase res
-      (cons (cdr res))
-      (t res))))
+(declaim (ftype (function (symbol env) (or null silica-type kind)) lookup))
+(defun lookup (var env)
+  (or 
+   (elt
+    (or (al:lookup var (env-locals env))
+        (ht:lookup var (env-base env)))
+    0)
+   (error (format nil "Can't find variable ~A in environment" var))))
+
+;; (declaim (ftype (function () (or silica-type term)) lookup-val))
+(defun lookup-val (var env)
+  (or (elt (al:lookup var (env-locals env)) 1)
+      (elt (ht:lookup var (env-base env)) 1)
+      (error (format nil "Can't find value of type ~A in environment" var))))
 
 ;; Bind var to ty in env.
-(declaim (ftype (function (symbol (or silica-type kind &optional boolean) env) env) bind))
+(declaim (ftype (function (symbol (or silica-type kind) env &optional boolean) env) bind))
 (defun bind (var ty env &optional is-constructor)
   (make-env
    :base (env-base env)
-   :vars (acons var ty (env-vars env))
-   :vals (acons var nil (env-vals env))))
+   :locals (acons var (list ty nil is-constructor) (env-locals env))))
 
-(defparameter +empty+ (make-env :base (ht:empty) :vars nil :vals nil))
+(declaim (ftype (function (symbol kind silica-type env &optional boolean) env) bind-2))
+(defun bind-2 (var ty val env &optional is-constructor)
+  (make-env
+   :base (env-base env)
+   :locals (acons var (list ty val is-constructor) (env-locals env))))
 
 (declaim (ftype (function (hash-table) env) make-env-from))
 (defun make-from (base)
-  (make-env :base base :vars nil :vals nil))
+  (make-env :base base :locals nil))
 
 ;; Bind var to val in env.
 ;; Mostly for, e.g. looking up types in the environment. 
 (defun bind-existing-val (var val env)
-  (labels ((build-vals (var val alist)
-             (match alist
-               ((guard (cons (cons nvar _) rest)
+  (labels ((build-locals (var val locals)
+             (match locals
+               ((guard (cons (cons nvar (list ty _ ctor)) rest)
                        (eq var nvar))
-                (acons var val rest))
-               ((cons (cons nvar nval) rest)
-                (acons nvar nval (build-vals var val rest)))
+                (acons var (list ty val ctor) rest))
+               ((cons (cons nvar ninfo) rest)
+                (acons nvar ninfo (build-locals var val rest)))
                (nil (error "Tried to insert val for non-bound var ~A" var)))))
     ;; iterate down the value env until we find a key
     (make-env
      :base (env-base env)
-     :vars (env-vars env)
-     :vals (build-vals var val (env-vals env)))))
-
-(defun bind-2 (var ty val env)
-  (make-env
-   :base (env-base env)
-   :vars (acons var ty (env-vars env))
-   :vals (acons var val (env-vals env))))
-
-(declaim (ftype (function (symbol env) (or null silica-type kind)) lookup))
-(defun lookup (var env)
-  (or (al:lookup var (env-vars env))
-      (lookup-base var (env-base env))
-      (error (format nil "Can't find variable ~A in environment" var))))
-
-(defun lookup-val (var env)
-  (or (al:lookup var (env-vals env))
-      (lookup-base-val var (env-base env))
-      (error (format nil "Can't find value of type ~A in environment" var))))
+     :locals (build-locals var val (env-locals env)))))
 
 (defun join (env-1 env-2)
   (make-env
    :base (ht:merge (env-base env-1) (env-base env-2) :by
                    (lambda (x y) (declare (ignore x)) y))
-   :vars (append (env-vars env-1) (env-vars env-2))
-   :vals (append (env-vals env-1) (env-vals env-2))))
+   :locals (append (env-locals env-1) (env-locals env-2))))
 

@@ -5,7 +5,12 @@
   :depends-on (:silica :parachute)
   :pathname "test"
   :components
-  ((:file "typecheck" :depends-on ("equality"))
+  ((:module "typecheck"
+     :pathname "typecheck"
+     :depends-on ("equality")
+     :components
+     ((:file "environment")
+      (:file "typecheck")))
    (:file "equality"  :depends-on ("silica-tests"))
    (:file "parse"     :depends-on ("silica-tests"))
    (:file "silica-tests")))

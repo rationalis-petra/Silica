@@ -776,6 +776,13 @@
                 (show (ann ctor))))
       (get-output-stream-string stream)))
 
+  (:method ((type inductive-ctor))
+    (let ((stream (make-string-output-stream)))
+      (format stream "(ctor : ~A)" (name type))
+      ;;(write-string " ⮜ " stream)
+      ;; (format stream "~A" (val-type type))
+      (get-output-stream-string stream)))
+
   (:method ((type signature))
     (let ((stream (make-string-output-stream)))
       (write-string "Σ" stream )
