@@ -33,13 +33,9 @@ package for use in other projects/packages."
                :exported-modules
                (list
                 (sym "num")
-
                 (sym "text")
-
                 (sym "io")
-
-                (sym "console")
-                ))))
+                (sym "console")))))
     ;; TODO: add a num module
 
     (load-base-module (sym "bool") "num/bool" base)

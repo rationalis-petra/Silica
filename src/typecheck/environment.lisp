@@ -1,6 +1,6 @@
 (defpackage :silica/environment
   (:nicknames :env)
-  (:use :cl :trivia)
+  (:use :cl :trivia :alexandria)
   (:import-from :silica
    :silica-type :kind)
 
@@ -9,7 +9,8 @@
    :+empty+ :join
    :bind :bind-2 :bind-existing-val
    :make-from
-   :lookup))
+   :from-locals
+   :lookup :lookup-ctor))
 (in-package :silica/environment)
 
 
@@ -28,6 +29,13 @@
 (defparameter +empty+ (make-env :base (ht:empty) :locals nil))
 ;; Local (var ↦ (ty (or val nil) is-ctor))
 ;; Base  (var ↦ (ty (or val nil) is-ctor))
+
+(declaim (ftype (function (symbol env) (or null silica-type)) lookup-ctor))
+(defun lookup-ctor (var env)
+  (when-let ((result (or (al:lookup var (env-locals env))
+                         (ht:lookup var (env-base env)))))
+    (when (elt result 2)
+      (elt result 0))))
 
 (declaim (ftype (function (symbol env) (or null silica-type kind)) lookup))
 (defun lookup (var env)
@@ -60,6 +68,10 @@
 (declaim (ftype (function (hash-table) env) make-env-from))
 (defun make-from (base)
   (make-env :base base :locals nil))
+
+(declaim (ftype (function (list) env) from-locals))
+(defun from-locals (locals)
+  (make-env :base (ht:empty) :locals locals))
 
 ;; Bind var to val in env.
 ;; Mostly for, e.g. looking up types in the environment. 

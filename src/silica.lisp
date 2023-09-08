@@ -1,5 +1,6 @@
 (defpackage silica
   (:use :cl :trivia :iter :alexandria :lang-extensions)
+  (:shadow :set)
   (:export
    ;; get silica values from CL
    :run-main

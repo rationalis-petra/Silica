@@ -20,7 +20,7 @@
   (:nicknames :al)
   (:export
    :empty :lookup :map :each :insert
-   :<>
+   :<> :join
    :make))
 (in-package :containers/alist)
 
@@ -41,6 +41,8 @@
   (iter (for x in list) (funcall func (cdr x))))
 
 (defun <> (&rest args) (apply #'append args))
+
+(defun join (alists) (apply #'append alists))
 
 (defmacro make (&rest entries)
   `(list

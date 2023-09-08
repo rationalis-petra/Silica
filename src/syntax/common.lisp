@@ -1,10 +1,10 @@
 (in-package :silica)
 
-(defgeneric show ())
+(defgeneric show (value))
 
-(defgeneric α= ())
+(defgeneric α= (left right &optional shadow rename))
 
-(defgeneric α= ())
+(defgeneric α<= (left right &optional shadow rename))
 
 (defun α>= (l r &optional shadow rename)
   (α<= r l

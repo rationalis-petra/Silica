@@ -36,7 +36,7 @@
     :reader body
     :initarg :body)))
 
-;; entry object; used in signatures/structures
+;; Entry object; used in signatures/structures
 (defclass entry ()
   ;; TODO: how to expand to inductive types (multiple vars/defs)
   ((var

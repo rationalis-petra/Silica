@@ -225,7 +225,7 @@ For usage in modules and structures"
              (cons
               (var ctor)
               (ty-subst (ann ctor) (al:make ((var value) . value))))
-             by (lambda (c l) (env:bind (car c) (cdr c) l))
+             by (lambda (c l) (env:bind (car c) (cdr c) l t))
              initial-value locals))
           locals)))))
 

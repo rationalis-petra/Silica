@@ -7,8 +7,15 @@
 (defclass ast ()
   ((source)))
 
-;; helper classes
-(defclass label (ast))
+;; Helper classes
+(defclass label (ast)
+  ((name
+    :type symbol
+    :reader name
+    :initarg :name)))
+(defgeneric print-object ((label label) stream)
+  (write-string (string (name label)) stream))
+
 (defclass silica-declaration (ast))
 (defclass silica-definition (ast))
 (defclass match-clause (ast))

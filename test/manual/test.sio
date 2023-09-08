@@ -25,10 +25,16 @@
 ⍝   (any ⟨α⟩ b → b)
 ⍝   (or l r → (eval l ∨ eval r)))
 
-⍝ (eval ⮜ ∀ α (Expr α → α))
-⍝ (eval ⟨α⟩ expr ≜ φ expr 
-⍝   (any b → b)
-⍝   (or l r → (eval l ∨ eval r)))
+(eval ⮜ ∀ α (Expr α → α))
+(eval ⟨α⟩ expr ≜ φ expr 
+  (any ⟨β⟩ c → c)
+  (or l r → (eval Bool l ∨ eval Bool r)))
+
+(myVal ⮜ Bool)
+(myVal ≜ eval Bool myExpr)
+
+(nat ⮜ τ)
+(nat ≜ ∀ α (α → (α → α) → α))
 
 ⍝ factorial function
 (fact ⮜ ℤ → ℤ)

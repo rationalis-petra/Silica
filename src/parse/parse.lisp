@@ -109,7 +109,13 @@
                   (cadr definition)))
         (body (caddr definition)))
     (flet ((mk-fun (args expr)
-             (reduce (lambda (x y) (mk-λ (get-var y) x))
+             (reduce (lambda (x y)
+                       (match (def-var y)
+                         ((pair (fst :arg) (snd s)) (mk-λ s x))
+                         ((pair (fst :typ) (snd s)) (mk-abs s x))
+                         (val
+                          (error
+                           (format nil "failed to match def-var output: ~A" val)))))
                      (cons expr (reverse args)))))
       (cond 
         ((eq *def-sym* (car definition))
@@ -124,6 +130,17 @@
                       (mk-fun (cdadr definition) (to-ast body))
                       (to-ast body))))
         (t (error "bad def!"))))))
+
+(declaim (ftype (function ((or symbol list)) pair) def-var))
+(defun def-var (x)
+  (match x
+    ((type symbol)
+     (pair :arg x))
+    ((list inner)
+     (def-var inner))
+    ((list 'sym::|⟨⟩| sym)
+     (pair :typ (get-var sym)))
+    (t (error (format nil "malformed var, reached:~A" x)))))
 
 (defun get-var (x)
   (cond
@@ -258,7 +275,7 @@ that infix operations are moved prefix. For example '(2 + a) is converted to
 
 ;; module header output:
 ;; (import
-;;   (module.submodule._
+;;   (module.submodule.(…)
 ;;    math.(x y z)))
 ;; 
 ;; (:imports
@@ -269,7 +286,16 @@ that infix operations are moved prefix. For example '(2 + a) is converted to
   (unless (eq *arrow-sym* (first term))
     (error (format nil "Match clause expects →, got ~A" (first term))))
 
-  (make-instance
-   'match-clause
-   :pattern (elt term 1)
-   :body (to-ast (elt term 2))))
+  (labels 
+      ((process-pattern (pattern)
+         (typecase pattern
+           (list
+            (if (= (length pattern) 1)
+                (process-pattern (first pattern))
+                (mapcar #'process-pattern pattern)))
+           (t pattern))))
+
+    (make-instance
+     'match-clause
+     :pattern (process-pattern (elt term 1))
+     :body (to-ast (elt term 2)))))

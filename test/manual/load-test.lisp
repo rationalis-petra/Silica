@@ -13,7 +13,7 @@
            (build-output (build-module package module-raw)))
       (setf (gethash name (modules package))
             (make-instance
-             'moduleterm
+             'module
              :name name
              :source (test-path path)
              :signature (al:lookup :type build-output) 
@@ -21,7 +21,6 @@
              :lisp-val (eval (al:lookup :code build-output))
              :module-package package
              :exports (al:lookup :export-list build-output))))))
-
 
 (defun load-test ()
   "A hacky solution (while quartz is under development) for loading in the base
@@ -35,7 +34,6 @@ package for use in other projects/packages."
 
     (setf (gethash (sym "test") *packages*) test)))
 
- 
 ;;  (Expr ◂ τ → τ)
 ;;  (Expr ≜ Φ
 ;;    (lit-bool ≜ Bool → Expr Bool)

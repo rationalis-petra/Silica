@@ -15,18 +15,119 @@
     :type silica-type
     :initarg :actual-type
     :reader message))
-  (:documentation ""))
+  (:documentation "For when the declared type does not match the actual type of
+  an expression"))
 
 
-(declaim (ftype (function (list silica-type env:env) cons) extract-pattern))
+;;(declaim (ftype (function (silica-type) list) type-to-list))
+(defun type-to-list (type)
+  (typecase type
+    (arrow (cons (cons (from type) nil) (type-to-list (to type))))
+    (forall (cons (cons (var-kind type) (mk-tvar (var type)))
+                  (type-to-list (body type))))
+    (t (list (cons type nil)))))
+
+(declaim (ftype (function ((or term silica-type)) list) unroll-type))
+(defun unroll-type (type)
+  (typecase type
+    (tapp (cons (left type) (unroll-type (right type))))
+    (app  (cons (left type) (unroll-type (right type))))
+    (t (list type))))
+
+;; TODO: return information relating to the expected type of the body, e.g.
+;; if we have a Expr α but this pattern forces α=Bool, then return that information
+;; i.e. return also a substitution to be applied to the return type
+(declaim (ftype (function ((or list symbol) (or kind silica-type) env:env) list) extract-pattern))
 (defun extract-pattern (pattern type env)
   "Given a PATTERN which is matching a value of type TYPE in an ENVIRONMENT,
 return the pair representing:
-1. An updated representation of the pattern
+1. An updated representation of the pattern. 
 2. A set of local variables, representing variables which are bound within the
-pattern."
-  (declare (ignore pattern type env))
-  (error "Extract-pattern not implemented!"))
+   pattern."
+
+  (labels
+       ((extract-subpattern (pattern ptn-type value env)
+         (match pattern
+           ((guard (list 'sym::|⟨⟩| s)
+                   (typep s 'symbol))
+            (assert (typep ptn-type 'kind))
+            (list (pair :var s)
+                  (al:make
+                   (s . (list ptn-type value nil)))
+                  (al:empty)))
+           (_ (extract-pattern pattern ptn-type env))))
+
+        (mk-subst (from to)
+          (match from
+            ((tapp (left l) (right r))
+             (if (typep r 'type-var)
+                 (al:insert (var r) (right to) (mk-subst l (left to)))
+                 (mk-subst l (left to))))
+            (t (al:empty)))))
+
+    (typecase pattern  
+      (list
+       (let ((head (first pattern))
+             (tail (rest pattern)))
+         (if-let ((pattern-type (env:lookup-ctor head env)))
+           (progn 
+             (format t "type: ~A~%" type)
+             (format t "pattern-type: ~A~%as-list: ~A~%" pattern-type (type-to-list pattern-type))
+
+             (unless (= (length pattern) (length (type-to-list pattern-type)))
+               (error
+                (format nil "Bad pattern: pattern ~A has ~A elements, but type
+~A has ~A elements" pattern (length tail) pattern-type (length (type-to-list pattern-type)))))
+
+
+             (iter (for subpattern in tail)
+               (for (var-type . var-val) in (type-to-list pattern-type))
+
+               (with subst = (mk-subst type (caar (last (type-to-list pattern-type)))))
+                   ;;(with unrolled-type = (unroll-type (caar (last (type-to-list pattern-type)))))
+
+
+               ;; TODO: Get a Type (Expr α)
+               ;; (Exp β) ↔ (... ∀ α (subpattern)... Expr α)
+               ;; Steps:
+               ;;   1. Correlate subpattern with 
+               ;;   2. 
+               ;(for var-val = (last ))
+               ;; type = (Φ ...) α
+
+               ;; (format t "subpattern: ~A~%" subpattern)
+               ;; (format t "var-type: ~A~%" var-type)
+               ;; (format t "var-val: ~A~%" var-val)
+               ;; (format t "subst: ~A~%" subst)
+               ;; (format t "var-type': ~A~%" (ty-subst var-type subst))
+               ;; (format t "var-val': ~A~%" (when var-val (ty-subst var-val subst)))
+
+               (match (extract-subpattern subpattern var-type var-val env)
+                 ((list new-subpattern new-locals new-subst)
+
+                  (collect new-locals into local-set)
+                  (collect new-subpattern into subpatterns)
+                  (collect new-subst into substitutions)))
+
+               (finally
+                (return
+                  (list
+                   (cons (pair :destruct head) subpatterns)
+                   (li:join local-set)
+                   (al:<> subst (al:join substitutions)))))))
+
+           (if tail
+               (error (format nil "Unrecognized pattern: ~A" pattern))
+               (list
+                (pair :var head)
+                (al:make (head . (list type nil nil)))
+                (al:empty))))))
+      ;; TODO: substitution?
+      (symbol
+       (list
+        (pair :var pattern)
+        (al:make (pattern . (list type nil nil)))
+        (al:empty))))))
 
 ;; we use bidirectional typechecking
 ;; i.e. 1x check method, 1x infer method
@@ -231,13 +332,14 @@ pattern."
        (iter (for clause in (clauses term))
 
          ;; First, get pattern variables
-         (destructuring-bind (new-pattern . locals) (extract-pattern (pattern clause) val-ty env)
-           ;; second, check body
-           (collect
-               (make-instance
-                'match-clause
-                :pattern new-pattern
-                :body (check (body clause) type (env:join locals env)))))))))
+         (match (extract-pattern (pattern clause) val-ty env)
+           ((list new-pattern locals subst)
+            ;; second, check body
+            (collect
+                (make-instance
+                 'match-clause
+                 :pattern new-pattern
+                 :body (check (body clause) (ty-subst type subst) (env:join (env:from-locals locals) env))))))))))
 
   ;; Kind Checking
   (:method ((type native-type) (kind kind-type) env) type)
@@ -392,7 +494,6 @@ pattern."
         ;; locals = local declarations
         (with locals = env:+empty+)
         (with prev-decl = nil)
-        ;; (with type-vals = nil)
         (typecase binder
           (silica-definition
            (let* ((new-entry

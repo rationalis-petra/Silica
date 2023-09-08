@@ -19,3 +19,12 @@
     :type array
     :reader induct-values
     :initarg :values)))
+
+(defmethod print-object ((ivalue silica-inductive-value) stream)
+  (if (induct-values ivalue)
+      (progn
+        (format stream "(~A" (name ivalue))
+        (iter (for val in-vector (induct-values ivalue))
+          (format stream " ~A" val))
+        (write-string  ")" stream))
+      (format stream "~A" (name ivalue))))

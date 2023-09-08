@@ -95,16 +95,18 @@
     (get-output-stream-string os)))
 
 
-(declaim (ftype (function (stream) list) parse-list))
-(defun parse-list (stream)
+(declaim (ftype (function (stream character (function (list) t)) list) parse-list))
+(defun parse-list (stream char func)
   (read-char stream)
-  (iter (while t)
-    (match (peek-char t stream nil :end)
-      (#\)
-       (read-char stream)
-       (return output))
-      (:end (return output))
-      (_ (collect (parse-expr stream) into output)))))
+  (->>
+   (iter (while t)
+     (match (peek-char t stream nil :end)
+       ((guard c (char= char c))
+        (read-char stream)
+        (return output))
+       (:end (error (format nil "premature end of input: expecting ~A" char)))
+       (_ (collect (parse-expr stream) into output))))
+   (funcall func)))
 
 
 (declaim (ftype (function (stream) list) parse-list))
@@ -127,9 +129,14 @@
 (declaim (ftype (function (stream) t) parse-expr))
 (defun parse-expr (stream)
   (match (peek-char t stream nil :end)
-    (#\( (parse-list stream))
+    (#\( (parse-list stream #\) #'identity))
     (#\) (error
           (format nil "closing ) without matching opening ( at ~A"
+                  (file-position stream))))
+
+    (#\⟨ (parse-list stream #\⟩ (lambda (x) (cons 'sym::|⟨⟩| x))))
+    (#\⟩ (error
+          (format nil "closing ⟩ without matching opening ⟨ at ~A"
                   (file-position stream))))
 
     (#\" (parse-string stream))
