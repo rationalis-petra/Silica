@@ -1,6 +1,9 @@
 (defpackage :silica/impl
   (:use :cl :iter)
-  (:export :silica-inductive-value))
+  (:export
+   :silica-inductive-value
+   :name
+   :induct-values))
 
 (in-package :silica/impl)
 

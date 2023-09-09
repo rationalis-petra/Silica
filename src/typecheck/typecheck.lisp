@@ -51,7 +51,7 @@ return the pair representing:
            ((guard (list 'sym::|⟨⟩| s)
                    (typep s 'symbol))
             (assert (typep ptn-type 'kind))
-            (list (pair :var s)
+            (list (pair :tvar s)
                   (al:make
                    (s . (list ptn-type value nil)))
                   (al:empty)))
@@ -71,8 +71,6 @@ return the pair representing:
              (tail (rest pattern)))
          (if-let ((pattern-type (env:lookup-ctor head env)))
            (progn 
-             (format t "type: ~A~%" type)
-             (format t "pattern-type: ~A~%as-list: ~A~%" pattern-type (type-to-list pattern-type))
 
              (unless (= (length pattern) (length (type-to-list pattern-type)))
                (error
@@ -84,23 +82,6 @@ return the pair representing:
                (for (var-type . var-val) in (type-to-list pattern-type))
 
                (with subst = (mk-subst type (caar (last (type-to-list pattern-type)))))
-                   ;;(with unrolled-type = (unroll-type (caar (last (type-to-list pattern-type)))))
-
-
-               ;; TODO: Get a Type (Expr α)
-               ;; (Exp β) ↔ (... ∀ α (subpattern)... Expr α)
-               ;; Steps:
-               ;;   1. Correlate subpattern with 
-               ;;   2. 
-               ;(for var-val = (last ))
-               ;; type = (Φ ...) α
-
-               ;; (format t "subpattern: ~A~%" subpattern)
-               ;; (format t "var-type: ~A~%" var-type)
-               ;; (format t "var-val: ~A~%" var-val)
-               ;; (format t "subst: ~A~%" subst)
-               ;; (format t "var-type': ~A~%" (ty-subst var-type subst))
-               ;; (format t "var-val': ~A~%" (when var-val (ty-subst var-val subst)))
 
                (match (extract-subpattern subpattern var-type var-val env)
                  ((list new-subpattern new-locals new-subst)
@@ -119,13 +100,13 @@ return the pair representing:
            (if tail
                (error (format nil "Unrecognized pattern: ~A" pattern))
                (list
-                (pair :var head)
+                (pair (if (typep type 'kind) :tvar :var) head)
                 (al:make (head . (list type nil nil)))
                 (al:empty))))))
       ;; TODO: substitution?
       (symbol
        (list
-        (pair :var pattern)
+        (pair (if (typep type 'kind) :tvar :var) pattern)
         (al:make (pattern . (list type nil nil)))
         (al:empty))))))
 

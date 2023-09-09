@@ -8,7 +8,7 @@
 
 ⍝ Boolean
 (myBool ⮜ Bool)
-(myBool ≜ true)
+(myBool ≜ false ∨ false)
 
 ⍝ TODO: catch bad expressions!
 ⍝ An expression type
@@ -19,11 +19,6 @@
 
 (myExpr ⮜ Expr Bool)
 (myExpr ≜ or (any Bool true) (any Bool false))
-
-⍝ (evalB ⮜ Expr Bool → Bool)
-⍝ (evalB expr ≜ φ expr 
-⍝   (any ⟨α⟩ b → b)
-⍝   (or l r → (eval l ∨ eval r)))
 
 (eval ⮜ ∀ α (Expr α → α))
 (eval ⟨α⟩ expr ≜ φ expr 

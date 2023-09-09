@@ -51,32 +51,33 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
              (when (typep def 'silica-definition)
                (setf current-ctx (ctx:hide (var def) current-ctx))
 
-               (cond
-                 ((or (typep (val def) 'silica-lambda)
-                      (typep (val def) 'term-lambda))
-                  (accumulate 
-                      (list (var def)
-                            (reify-named-lambda (var def) (val def) ctx))
-                      by #'cons
-                      into out))
-
-                 ((typep (val def) 'inductive-type)
-                  ;; TODO: can we remove this accumulate?
-                  (accumulate 
-                   (list (var def) (reify (val def) ctx))
-                   by #'cons
-                   into out)
-
-                  (accumulate
-                  ;; Collect the defintions of all inductive types
-                   (li:map #'reify-ctor (constructors (val def)))
-                   by #'append
-                   into out))
-
-                 (t (accumulate
-                     (list (var def) (reify (val def) ctx))
+               (let ((inner-val (get-inner-val (val def))))
+                 (cond
+                   ((or (typep inner-val 'silica-lambda)
+                        (typep inner-val 'term-lambda))
+                    (accumulate 
+                     (list (var def)
+                           (reify-named-lambda (var def) inner-val ctx))
                      by #'cons
-                     into out))))
+                     into out))
+
+                   ((typep (val def) 'inductive-type)
+                    ;; TODO: can we remove this accumulate?
+                    (accumulate 
+                     (list (var def) (reify inner-val ctx))
+                     by #'cons
+                     into out)
+
+                    (accumulate
+                     ;; Collect the defintions of all inductive types
+                     (li:map #'reify-ctor (constructors inner-val))
+                     by #'append
+                     into out))
+
+                   (t (accumulate
+                       (list (var def) (reify inner-val ctx))
+                       by #'cons
+                       into out)))))
 
              (finally (return (reverse out)))))
 
@@ -91,9 +92,9 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
                (when (typep (val (binder entry)) 'inductive-type)
                  (accumulate
                   ;; Collect the defintions of all inductive types
-                   (li:map #'var (constructors (val (binder entry))))
-                   by #'append
-                   into out)))
+                  (li:map #'var (constructors (val (binder entry))))
+                  by #'append
+                  into out)))
 
              (finally (return (reverse out)))))
 
@@ -112,6 +113,76 @@ constructing a (let* ((x₁ e₁) .. (xₙ eₙ)) (hashmap (x₁ = e₁) .. (x�
   (:method ((term projection) ctx)
     "Reify a field access (s.f). Do do this by converting it to (gethash 'f s)"
     `(gethash (quote ,(field term)) ,(reify (silica-struct term) ctx)))
+
+  (:method ((term pattern-match) ctx)
+    "Reify a pattern-match φ e ((pat₀ → bdy₀) ... (patₙ → bdyₙ)). Do do this by
+converting it to a cond whose cases test for the appropriate pattern. If
+a cond matches, then use a let to get the appropriate variables."
+
+    (labels 
+        ((destructure (term clause)
+           (let ((pattern (remove-tvars (pattern clause))))
+             (list
+              (reify-pattern-test term pattern)
+              `(let* ,(reify-pattern-bind term pattern)
+                 ,(reify (body clause)
+                         (reduce (lambda (x y) (ctx:hide y x)) (pattern-vars pattern)
+                                         :initial-value ctx))))))
+
+         (remove-tvars (pattern)
+           (match pattern
+             ((pair (fst :var) (snd _)) pattern)
+             ((pair (fst :tvar) (snd _)) nil)
+             ((cons pr tail)
+              (cons pr
+                    (remove-if (curry #'eq nil)
+                               (mapcar #'remove-tvars tail))))))
+
+         ;; Given a pattern, generate an expression which will evaluate to true
+         ;; if a value matches that pattern.
+         (reify-pattern-test (term pattern)
+           (match pattern
+             ((pair (fst :var) (snd _)) t)
+             ((cons (pair (fst :destruct) (snd sym)) tail)
+              `(and (eq (silica/impl:name ,term) (quote ,sym))
+                    ,@(iter (for subpattern in tail)
+                        (for i from 0)
+                        (collect (reify-pattern-test
+                                  `(elt (silica/impl:induct-values ,term) ,i)
+                                  subpattern)))))))
+
+         ;; Assume a pattern has matched, create clauses in a let* binding
+         (reify-pattern-bind (term pattern)
+           (match pattern
+             ((pair (fst :var) (snd sym))
+              (list (list sym term)))
+             ((cons (pair (fst :destruct) (snd _)) tail)
+              (iter (for subpattern in tail)
+                    (for i from 0)
+                (let ((subpattern-name (gensym)))
+                  (collect (list subpattern-name
+                                 `(elt (silica/impl:induct-values ,term) ,i))
+                    into subpattern-names)
+                  (collect (reify-pattern-bind subpattern-name subpattern)
+                    into subpattern-bindings)
+
+                  (finally (return
+                             (li:<> subpattern-names
+                                    (li:join subpattern-bindings)))))))))
+
+         ;; Given a pattern, return a list of all variables it binds
+         (pattern-vars (pattern)
+           (match pattern
+             ((pair (fst :var) (snd sym)) (list sym))
+             ((cons (pair (fst :destruct) (snd _)) tail)
+              (apply #'append (mapcar #'pattern-vars tail))))))
+
+
+      (let ((term-name (gensym "destructure")))
+        `(let ((,term-name ,(reify (term term) ctx)))
+           (cond
+             ,@(mapcar (curry #'destructure term-name) (clauses term))
+             (t (error (format nil "failed to match value ~A~%" ,term-name))))))))
 
   (:method ((term conditional) ctx)
     "Reify a conditional (if e1 e2 e3). Do do this by converting it to the
@@ -170,3 +241,8 @@ common lisp (if e1 e2 e3)"
           :values (make-array ,arity :initial-contents (list ,@vars))
           :name (quote ,(var decl))))))))
 
+
+(defun get-inner-val (val)
+  (typecase val
+    (abstract (get-inner-val (body val)))
+    (t val)))

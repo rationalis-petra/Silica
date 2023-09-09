@@ -1,6 +1,7 @@
 (in-package :silica)
 
 ;; laod the base library
+(defvar *tree* nil) 
 
 (defun test-path (path)
   (asdf:system-relative-pathname
@@ -11,6 +12,7 @@
   (with-open-file (file (test-path path))
     (let* ((module-raw (parse-file file))
            (build-output (build-module package module-raw)))
+      (setf *tree* (al:lookup :code build-output))
       (setf (gethash name (modules package))
             (make-instance
              'module
