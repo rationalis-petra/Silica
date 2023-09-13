@@ -1,15 +1,21 @@
 (module console
   (import 
-    io.(…)
-    unit.(…) 
     text.(…))
-  (export print readLine))
+  (export print println readLine))
 
 (print ⮜ Text → IO Unit)
 (print s ≜ lisp (IO Unit) (s)
  ⟦(cl:lambda (x) 
     (cl:declare (cl:ignore x))
-    (cl:print sym::|s|)
+    (cl:write-string sym::|s|)
+    t)⟧)
+
+(println ⮜ Text → IO Unit)
+(println s ≜ lisp (IO Unit) (s)
+ ⟦(cl:lambda (x) 
+    (cl:declare (cl:ignore x))
+    (cl:write-string sym::|s|)
+    (cl:write-char #\newline)
     t)⟧)
 
 (readLine ⮜ IO Text)

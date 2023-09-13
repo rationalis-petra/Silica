@@ -19,7 +19,7 @@
     :reader left
     :initarg :left)
    (right
-    :type (or term type)
+    :type (or term silica-type)
     :reader right
     :initarg :right)))
 (defclass silica-lambda (term silica-type)
@@ -269,6 +269,15 @@
 
 (defclass kind () ())
 (defclass kind-type (kind) ())
+(defclass kind-is (kind)
+  ((kind
+    :type kind
+    :reader kind
+    :initarg :kind)
+   (type
+    :type silica-type
+    :reader silica-type
+    :initarg :type)))
 (defclass kind-arrow (kind)
   ((from
     :type kind
@@ -392,6 +401,8 @@
   (make-instance 'conditional :test test
                               :if-true if-true
                               :if-false if-false))
+(defun mk-is (kind type)
+  (make-instance 'kind-is :kind kind :type type))
 
 (defgeneric atomic? (term)
   (:method ((term var)) t)
@@ -649,7 +660,7 @@
 
   (:method ((l inductive-type) (r inductive-type) &optional renamings shadowed)
     (and 
-     (α= (kind l) (kind r))
+     (α<= (kind l) (kind r))
      (every
       (lambda (l-decl r-decl)
         (α<= l-decl r-decl
@@ -657,6 +668,13 @@
              (cons (cons (var l) (car shadowed))
                    (cons (var r) (car shadowed)))))
       (constructors l) (constructors r))))
+
+  (:method ((l kind-is) (r kind-is) &optional renamings shadowed)
+    (and (α<= (kind l) (kind r) renamings shadowed)
+         (α<= (silica-type l) (silica-type r))))
+
+  (:method ((l kind-is) (r kind) &optional renamings shadowed)
+    (α<= (kind l) r renamings shadowed))
 
   (:method ((l kind) (r kind) &optional renamings shadowed)
     (α= l r renamings shadowed))
@@ -798,6 +816,9 @@
 
   (:method ((kind kind-arrow))
     (format nil "(~A → ~A)" (show (from kind)) (show (to kind))))
+
+  (:method ((kind kind-is))
+    (format nil "(is ~A ~A)" (show (kind kind)) (show (silica-type kind))))
 
   (:method ((decl silica-declaration))
     (format nil "(~A ⮜ ~A)"  (var decl) (show (ann decl))))

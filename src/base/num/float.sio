@@ -2,7 +2,7 @@
  (import bool)
  (export F64 + - × ÷ √ = < > ≤ ≥))
 
-(F64 ⮜ τ)
+(F64 ⮜ is τ (native ⟦CL:DOUBLE-FLOAT⟧))
 (F64 ≜ native ⟦CL:DOUBLE-FLOAT⟧)
 
 ((+) ⮜ F64 → F64 → F64)

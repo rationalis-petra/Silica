@@ -160,16 +160,6 @@ return the pair representing:
                 (from type)
                 (body-check (from type) (to type))))))
 
-  (:method ((term silica-lambda) (type kind-arrow) env)
-    (flet ((body-check (from to)
-             (check (body term) to (env:bind (var term) from env))))
-      (if (slot-boundp term 'var-type)
-          (if (α= (from type) (var-type term))
-              (body-check (var-type term) (to type))
-              (error "Declared type constructor argument kind doesn't match actual kind"))
-          (mk-tλ (var term)
-                 (from type)
-                 (body-check (from type) (to type))))))
 
   (:method ((term abstract) (type forall) env)
     (flet ((body-check (body type var1 var2 kind)
@@ -332,6 +322,23 @@ return the pair representing:
     ;; TODO: iterate through & check for well-formedness
     type)
 
+  (:method ((type silica-type) (kind kind-is) env)
+    (let ((new-type (ty-eval type env)))
+      (if (α<= type (silica-type kind))
+          new-type
+          (error (format nil "Type ~A not equal to value declared by is-kind: ~A" type kind)))))
+
+  (:method ((term silica-lambda) (type kind-arrow) env)
+    (flet ((body-check (from to)
+             (check (body term) to (env:bind (var term) from env))))
+      (if (slot-boundp term 'var-type)
+          (if (α= (from type) (var-type term))
+              (body-check (var-type term) (to type))
+              (error "Declared type constructor argument kind doesn't match actual kind"))
+          (mk-tλ (var term)
+                 (from type)
+                 (body-check (from type) (to type))))))
+
   (:method ((type inductive-type) (kind kind) env)
     ;; Iterate through all constructors
     (mk-induct
@@ -443,12 +450,12 @@ return the pair representing:
              (cons (ty-eval (to lt) env) (mk-app lv rv))
              (error "Bad application: term of type ~A cannot be applied to term of type ~A" rt lt)))
         (kind-arrow
-         (if (α= (from lt) rt)
+         (if (β>= (from lt) rt env)
              (cons (ty-eval (to lt) env) (mk-tapp lv rv))
              (error "Bad application: type of kind ~A cannot be applied to type
            of kind ~A" rt lt)))
         (forall
-         (if (α= (var-kind lt) rt)
+         (if (β>= (var-kind lt) rt env)
              (cons 
               (ty-eval (ty-subst (body lt) (acons (var lt) (right term) nil)) env)
               (mk-app lv (ty-eval rv env)))

@@ -12,43 +12,19 @@
 
 ⍝ TODO: catch bad expressions!
 ⍝ An expression type
-(Expr ⮜ τ → τ)
-(Expr ≜ Φ 
-  (or ⮜ Expr Bool → Expr Bool → Expr Bool)
-  (any ⮜ ∀ (α) (α → Expr α)))
+(Vehicle ⮜ τ)
+(Vehicle ≜ Φ 
+  (car ⮜ Vehicle)
+  (bike ⮜ Vehicle))
 
-(myExpr ⮜ Expr Bool)
-(myExpr ≜ or (any Bool true) (any Bool false))
-
-(eval ⮜ ∀ α (Expr α → α))
-(eval ⟨α⟩ expr ≜ φ expr 
-  (any ⟨β⟩ c → c)
-  (or l r → (eval Bool l ∨ eval Bool r)))
-
-(myVal ⮜ Bool)
-(myVal ≜ eval Bool myExpr)
-
-(nat ⮜ τ)
-(nat ≜ ∀ α (α → (α → α) → α))
-
-⍝ factorial function
-(fact ⮜ ℤ → ℤ)
-(fact n ≜ 
-  if (n ≤ 0) 1 (n × fact (n - 1)))
-
-⍝ make the pair (5, 5!)
-(pr ⮜ Σ (x ⮜ ℤ) (y ⮜ ℤ))
-(pr ≜ σ (x ≜ 5) (y ≜ fact 5))
-
-⍝ get the second element of the pair (5! = 120) 
-(result ⮜ ℤ)
-(result ≜ pr.y)
+(show ⮜ Vehicle → Text)
+(show vehicle ≜ φ vehicle 
+  (car → "car")
+  (bike → "bike"))
 
 ⍝ test sequencing
 (main ⮜ IO Unit)
 (main ≜ 
   seq Unit Unit
-   (print "what's your name? ")
-   (bind Text Unit
-    readLine
-    (λ ((t ⮜ Text)) (print ("Hello, " ⋅ t)))))
+   (println "vehicle is:")
+   (println (show bike)))

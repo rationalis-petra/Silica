@@ -21,6 +21,7 @@
 (defvar *lisp-sym* (sym "lisp"))
 
 (defvar *if-sym* (sym "if"))
+(defvar *is-sym* (sym "is"))
 
 (defvar *dot-sym* (sym "."))
 (defvar *ann-sym* (sym "⮜")) 
@@ -52,6 +53,8 @@
   (eq sym *def-sym*))
 (defun ann-sym? (sym)
   (eq sym *ann-sym*))
+(defun is-sym? (sym)
+  (eq sym *is-sym*))
 (defun cond-sym? (sym)
   (eq sym *if-sym*))
 (defun native-sym? (sym)
@@ -78,6 +81,7 @@
       (kind-sym? sym)
       (def-sym? sym)
       (ann-sym? sym)
+      (is-sym? sym)
       (cond-sym? sym)
       (native-sym? sym)
       (lisp-sym? sym)
@@ -192,6 +196,8 @@ syntax-tree."
         (mk-match
          (to-ast (elt term 1))
          (li:map #'to-match-clause (li:drop 2 term))))
+       ((is-sym? (first term))
+        (mk-is (to-ast (elt term 1)) (to-ast (elt term 2))))
        ((struct-sym? (first term))
         (mk-struct
          (li:map (lambda (def)

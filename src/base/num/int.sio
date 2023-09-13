@@ -1,7 +1,7 @@
 (module int
  (export ℤ + - × ÷ = < > ≥  ≤))
 
-(ℤ ⮜ τ)
+(ℤ ⮜ is τ (native ⟦cl:integer⟧))
 (ℤ ≜ native ⟦cl:integer⟧)
 
 ((+) ⮜ ℤ → ℤ → ℤ)

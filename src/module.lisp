@@ -184,8 +184,14 @@ modular recompilation. "))
       (ecase type
         (:module (module-export-types val))
         (:atom (atom-export-types val))))
+
     (lambda (module) (list (signature module) nil nil))
-    (lambda (atom) (al:lookup :type atom)))))
+    ;; check if type
+    (lambda (atom)
+      (destructuring-bind (type val ctor) (al:lookup :type atom)
+        (typecase type
+          (kind-is (list type (silica-type type) ctor))
+          (t (list type nil ctor))))))))
 
 (declaim (ftype (function (hash-table list) ctx:context) gen-ctx))
 (defun gen-ctx (available-modules module-raw)

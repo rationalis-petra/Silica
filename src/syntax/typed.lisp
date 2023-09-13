@@ -11,11 +11,18 @@
 (defclass match-clause ())
 (defclass pattern ())
 
-;; terms (values)
-(defclass tm-var (term))
-(defclass tm-telescope (term))
-(defclass tm-projection (term))
-(defclass tm-lambda (term))
+
+;; Terms & types
+(defclass term ())
+(defclass type ())
+
+;; expressions (terms & types)
+(defclass var (term type))
+(defclass telescope (term type))
+(defclass projection (term type))
+(defclass lambda (term type))
+
+;; expressions (terms)
 (defclass abstraction (term))
 (defclass inductive-ctor (term))
 (defclass match (term))
@@ -26,11 +33,6 @@
 
 ;; expressions (types)
 (defclass type ())
-(defclass ty-var (type))
-(defclass ty-arrow (term))
-(defclass ty-telescope (type))
-(defclass ty-projection (type))
-(defclass ty-lambda (type))
 (defclass forall (type))
 (defclass inductive-type (type))
 (defclass inductive-def (type))

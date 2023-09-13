@@ -1,7 +1,7 @@
 (module string
   (export Text ⋅))
 
-(Text ⮜ τ)
+(Text ⮜ is τ (native ⟦(cl:simple-array cl:character)⟧))
 (Text ≜ native ⟦(cl:simple-array cl:character)⟧)
 
 ((⋅) ⮜ Text → Text → Text)

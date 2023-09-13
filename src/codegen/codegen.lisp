@@ -206,15 +206,10 @@ common lisp (if e1 e2 e3)"
     func))
 
 (defun reify-named-lambda (name term ctx)
-  `(fix
-    (lambda (,name)
-      (lambda (,(var term))
-        ,(reify (body term) (ctx:hide (var term) ctx))))))
-
-;; (defun reify-named-lambda (name term ctx)
-;;   `(labels
-;;     ((,name (,(var term))
-;;        ,(reify (body term) (ctx:hide (var term) ctx))))))
+  `(labels
+       ((,name (,(var term))
+          ,(reify (body term) (ctx:hide (var term) ctx))))
+     #',name))
 
 (declaim (ftype (function (silica-type) integer) calc-arity))
 (defun calc-arity (ty)

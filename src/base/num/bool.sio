@@ -2,7 +2,7 @@
   (export Bool true false))
 
 
-(Bool ⮜ τ)
+(Bool ⮜ is τ (native ⟦cl:boolean⟧))
 (Bool ≜ (native ⟦cl:boolean⟧))
 
 (true ⮜ Bool)
